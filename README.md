@@ -10,3 +10,11 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
 - packet size: 512kb
 - unit generators: default
 - date: 2022-02-01
+
+### ext:
+
+- initial memory: 64mb
+- packet size: 512kb
+- unit generators: default
+  + sc3-rdu: RBezier, RDX7, TScramble
+- date: 2022-02-09
