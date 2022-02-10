@@ -28,7 +28,12 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
   + portedplugins
     - AnalogFoldOsc
     - Rongs
-    - VA1Pole, VADiodeFilter, VAKorg35, VALadder, VadimFilter
+    - VA1Pole, VADiodeFilter, VAKorg35, VALadder
+    - VadimFilter
+  + vb:
+    - RCD, SCM
+    - VBChebyFilt, VBFourses, VBJonVerb
+    - Lores, Slide
   + sc3-rdu:
     - RDX7, RObxdFilter
     - ExpRandN, IRandN, LinRandN, RandN, TExpRandN, TLinRandN, TRandN

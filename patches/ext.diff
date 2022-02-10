@@ -1,8 +1,8 @@
 diff --git a/server/scsynth/CMakeLists.txt b/server/scsynth/CMakeLists.txt
-index e3547a6e1..7cee2efda 100644
+index e3547a6e1..97ec27e9c 100644
 --- a/server/scsynth/CMakeLists.txt
 +++ b/server/scsynth/CMakeLists.txt
-@@ -139,6 +139,63 @@ if (EMSCRIPTEN)
+@@ -139,6 +139,71 @@ if (EMSCRIPTEN)
  		FFT2InterfaceTable.cpp
  		FeatureDetection.cpp
  		PV_ThirdParty.cpp
@@ -31,6 +31,14 @@ index e3547a6e1..7cee2efda 100644
 +                portedplugins/plugins/odinfilters/Korg35Filter.cpp
 +                portedplugins/plugins/odinfilters/LadderFilter.cpp
 +                portedplugins/plugins/odinfilters/VAOnePoleFilter.cpp
++
++                # vb_UGens/projects/vbPVoc/vbPVoc.cpp
++                vb_UGens/projects/RCD/vb.rcd.cpp
++                vb_UGens/projects/SCM/vb.scm.cpp
++                vb_UGens/projects/vbChebyFilt/vbChebyFilt.cpp
++                vb_UGens/projects/vbFourses/vbFourses.cpp
++                vb_UGens/projects/vbJonVerb/vbJonVerb.cpp
++                vb_UGens/projects/vbUtils/vbUtils.cpp
 +
 +                # sc3-rdu/cpp/PV_Split.cpp
 +                # sc3-rdu/cpp/RDL.cpp
@@ -80,19 +88,19 @@ index 27687279d..d7b75760b 100644
  
  static void udp_reply_func(struct ReplyAddress* addr, char* msg, int size) {
 diff --git a/server/scsynth/SC_Lib_Cintf.cpp b/server/scsynth/SC_Lib_Cintf.cpp
-index a47a1232d..cf7425956 100644
+index a47a1232d..4a257d395 100644
 --- a/server/scsynth/SC_Lib_Cintf.cpp
 +++ b/server/scsynth/SC_Lib_Cintf.cpp
-@@ -109,6 +109,39 @@ extern void DynNoise_Load(InterfaceTable* table);
+@@ -109,6 +109,47 @@ extern void DynNoise_Load(InterfaceTable* table);
  extern void FFT_UGens_Load(InterfaceTable* table);
  extern void iPhone_Load(InterfaceTable* table);
  
 +// wasm-ld: error: duplicate symbol: Mirroring(float, float, float) >>> defined in libscsynth.a(BhobChaos.cpp.o) libscsynth.a(BhobFilt.cpp.o)
 +// wasm-ld: error: duplicate symbol: ft >>> defined in libscsynth.a(FFTInterfaceTable.cpp.o) libscsynth.a(BhobFFT.cpp.o)
-+
 +// extern void BhobChaos_Load(InterfaceTable* table);
-+extern void BhobFilt_Load(InterfaceTable* table);
 +// extern void BhobPV_Load(InterfaceTable* table);
++
++extern void BhobFilt_Load(InterfaceTable* table);
 +extern void BhobGrains_Load(InterfaceTable* table);
 +extern void BhobNoise_Load(InterfaceTable* table);
 +
@@ -107,6 +115,14 @@ index a47a1232d..cf7425956 100644
 +extern void VAKorg35UGens_Load(InterfaceTable *table);
 +extern void VALadderUGens_Load(InterfaceTable *table);
 +extern void VadimFilterUGens_Load(InterfaceTable *table);
++
++// extern void VBPVoc_Load(InterfaceTable* table);
++extern void RCD_Load(InterfaceTable* table);
++extern void SCM_Load(InterfaceTable* table);
++extern void VBChebyFilt_Load(InterfaceTable* table);
++extern void VBFourses_Load(InterfaceTable* table);
++extern void VBJonVerb_Load(InterfaceTable* table);
++extern void Slide_Load(InterfaceTable* table);
 +
 +extern void ExpRandN_Load(InterfaceTable* table);
 +extern void IRandN_Load(InterfaceTable* table);
@@ -123,14 +139,14 @@ index a47a1232d..cf7425956 100644
  
  void deinitialize_library() {
  #ifdef _WIN32
-@@ -166,6 +199,38 @@ void initialize_library(const char* uGensPluginPath) {
+@@ -166,6 +207,47 @@ void initialize_library(const char* uGensPluginPath) {
      iPhone_Load(&gInterfaceTable);
  #    endif
      FFT_UGens_Load(&gInterfaceTable);
 +
 +    // BhobChaos_Load(&gInterfaceTable);
-+    BhobFilt_Load(&gInterfaceTable);
 +    // BhobPV_Load(&gInterfaceTable);
++    BhobFilt_Load(&gInterfaceTable);
 +    BhobGrains_Load(&gInterfaceTable);
 +    BhobNoise_Load(&gInterfaceTable);
 +
@@ -145,6 +161,15 @@ index a47a1232d..cf7425956 100644
 +    VAKorg35UGens_Load(&gInterfaceTable);
 +    VALadderUGens_Load(&gInterfaceTable);
 +    VadimFilterUGens_Load(&gInterfaceTable);
++
++    // VBPVoc_Load(&gInterfaceTable);
++    RCD_Load(&gInterfaceTable);
++    SCM_Load(&gInterfaceTable);
++    VBChebyFilt_Load(&gInterfaceTable);
++    VBChebyFilt_Load(&gInterfaceTable);
++    VBFourses_Load(&gInterfaceTable);
++    VBJonVerb_Load(&gInterfaceTable);
++    Slide_Load(&gInterfaceTable);
 +
 +    ExpRandN_Load(&gInterfaceTable);
 +    IRandN_Load(&gInterfaceTable);
