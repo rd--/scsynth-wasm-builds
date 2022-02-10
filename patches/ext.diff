@@ -1,0 +1,164 @@
+diff --git a/server/scsynth/CMakeLists.txt b/server/scsynth/CMakeLists.txt
+index e3547a6e1..7cee2efda 100644
+--- a/server/scsynth/CMakeLists.txt
++++ b/server/scsynth/CMakeLists.txt
+@@ -139,6 +139,63 @@ if (EMSCRIPTEN)
+ 		FFT2InterfaceTable.cpp
+ 		FeatureDetection.cpp
+ 		PV_ThirdParty.cpp
++
++                # sc3-plugins/source/BhobUGens/BhobChaos.cpp
++                # sc3-plugins/source/BhobUGens/BhobFFT.cpp
++                sc3-plugins/source/BhobUGens/BhobFilt.cpp
++                sc3-plugins/source/BhobUGens/BhobGrain.cpp
++                sc3-plugins/source/BhobUGens/BhobNoise.cpp
++
++                sc3-plugins/source/MCLDUGens/MCLDChaosUGens.cpp
++                sc3-plugins/source/MCLDUGens/MCLDFilterUGens.cpp
++                sc3-plugins/source/MCLDUGens/MCLDOscUGens.cpp
++
++                portedplugins/plugins/AnalogFoldOsc/AnalogFoldOsc.cpp
++                portedplugins/plugins/AnalogFoldOsc/buchla259cell.cpp
++                portedplugins/plugins/AnalogFoldOsc/buchla259waveshaper.cpp
++                portedplugins/plugins/Rongs/Rongs.cpp
++                portedplugins/plugins/VA1Pole/VA1Pole.cpp
++                portedplugins/plugins/VADiodeFilter/VADiodeFilter.cpp
++                portedplugins/plugins/VAKorg35/VAKorg35.cpp
++                portedplugins/plugins/VALadder/VALadder.cpp
++                portedplugins/plugins/VadimFilter/VadimFilter.cpp
++                portedplugins/plugins/mutated/mi-modal.cpp
++                portedplugins/plugins/odinfilters/DiodeFilter.cpp
++                portedplugins/plugins/odinfilters/Korg35Filter.cpp
++                portedplugins/plugins/odinfilters/LadderFilter.cpp
++                portedplugins/plugins/odinfilters/VAOnePoleFilter.cpp
++
++                # sc3-rdu/cpp/PV_Split.cpp
++                # sc3-rdu/cpp/RDL.cpp
++                # sc3-rdu/cpp/RDX7Env.cpp
++                # sc3-rdu/cpp/RDelayMap.cpp
++                # sc3-rdu/cpp/RDelaySet.cpp
++                # sc3-rdu/cpp/RDelaySetBuf.cpp
++                # sc3-rdu/cpp/RDustR.cpp
++                # sc3-rdu/cpp/RLagC.cpp
++                # sc3-rdu/cpp/RLoopSet.cpp
++                # sc3-rdu/cpp/RPVDecayTbl.cpp
++                # sc3-rdu/cpp/RSVFBP.cpp
++                # sc3-rdu/cpp/RSVFHP.cpp
++                # sc3-rdu/cpp/RSVFLP.cpp
++                # sc3-rdu/cpp/RShufflerB.cpp
++                # sc3-rdu/cpp/RShufflerL.cpp
++                # sc3-rdu/cpp/RSmplrIndex.cpp
++                # sc3-rdu/cpp/RTracePlay.cpp
++                # sc3-rdu/cpp/RTraceRd.cpp
++                sc3-rdu/cpp/ExpRandN.cpp
++                sc3-rdu/cpp/IRandN.cpp
++                sc3-rdu/cpp/LinRandN.cpp
++                sc3-rdu/cpp/RBezier.cpp
++                sc3-rdu/cpp/RDX7.cpp
++                sc3-rdu/cpp/RFreezer.cpp
++                sc3-rdu/cpp/RObxdFilter.cpp
++                sc3-rdu/cpp/RandN.cpp
++                sc3-rdu/cpp/TExpRandN.cpp
++                sc3-rdu/cpp/TLinRandN.cpp
++                sc3-rdu/cpp/TRandN.cpp
++                sc3-rdu/cpp/TScramble.cpp
++
+ 	)
+ 	foreach(plugin ${plugin_sources_rel})
+ 		string(CONCAT plugin_abs ${CMAKE_SOURCE_DIR}/server/plugins/ ${plugin} )
+diff --git a/server/scsynth/SC_ComPort.cpp b/server/scsynth/SC_ComPort.cpp
+index 27687279d..d7b75760b 100644
+--- a/server/scsynth/SC_ComPort.cpp
++++ b/server/scsynth/SC_ComPort.cpp
+@@ -152,7 +152,7 @@ static bool UnrollOSCPacket(World* inWorld, int inSize, char* inData, OSC_Packet
+ SC_Thread gAsioThread;
+ boost::asio::io_service ioService;
+ 
+-const int kTextBufSize = 65536;
++const int kTextBufSize = 524288; // 65536 -> 524288 (rd)
+ 
+ 
+ static void udp_reply_func(struct ReplyAddress* addr, char* msg, int size) {
+diff --git a/server/scsynth/SC_Lib_Cintf.cpp b/server/scsynth/SC_Lib_Cintf.cpp
+index a47a1232d..cf7425956 100644
+--- a/server/scsynth/SC_Lib_Cintf.cpp
++++ b/server/scsynth/SC_Lib_Cintf.cpp
+@@ -109,6 +109,39 @@ extern void DynNoise_Load(InterfaceTable* table);
+ extern void FFT_UGens_Load(InterfaceTable* table);
+ extern void iPhone_Load(InterfaceTable* table);
+ 
++// wasm-ld: error: duplicate symbol: Mirroring(float, float, float) >>> defined in libscsynth.a(BhobChaos.cpp.o) libscsynth.a(BhobFilt.cpp.o)
++// wasm-ld: error: duplicate symbol: ft >>> defined in libscsynth.a(FFTInterfaceTable.cpp.o) libscsynth.a(BhobFFT.cpp.o)
++
++// extern void BhobChaos_Load(InterfaceTable* table);
++extern void BhobFilt_Load(InterfaceTable* table);
++// extern void BhobPV_Load(InterfaceTable* table);
++extern void BhobGrains_Load(InterfaceTable* table);
++extern void BhobNoise_Load(InterfaceTable* table);
++
++extern void MCLDChaos_Load(InterfaceTable *table);
++extern void MCLDFilter_Load(InterfaceTable *table);
++extern void MCLDOsc_Load(InterfaceTable *table);
++
++extern void AnalogFoldOscUGens_Load(InterfaceTable *table);
++extern void RongsUGens_Load(InterfaceTable *table);
++extern void VA1PoleUGens_Load(InterfaceTable *table);
++extern void VADiodeFilterUGens_Load(InterfaceTable *table);
++extern void VAKorg35UGens_Load(InterfaceTable *table);
++extern void VALadderUGens_Load(InterfaceTable *table);
++extern void VadimFilterUGens_Load(InterfaceTable *table);
++
++extern void ExpRandN_Load(InterfaceTable* table);
++extern void IRandN_Load(InterfaceTable* table);
++extern void LinRandN_Load(InterfaceTable* table);
++extern void RBezier_Load(InterfaceTable* table);
++extern void RDX7_Load(InterfaceTable* table);
++extern void RFreezer_Load(InterfaceTable* table);
++extern void RObxdFilter_Load(InterfaceTable* table);
++extern void RandN_Load(InterfaceTable* table);
++extern void TExpRandN_Load(InterfaceTable* table);
++extern void TLinRandN_Load(InterfaceTable* table);
++extern void TRandN_Load(InterfaceTable* table);
++extern void TScramble_Load(InterfaceTable* table);
+ 
+ void deinitialize_library() {
+ #ifdef _WIN32
+@@ -166,6 +199,38 @@ void initialize_library(const char* uGensPluginPath) {
+     iPhone_Load(&gInterfaceTable);
+ #    endif
+     FFT_UGens_Load(&gInterfaceTable);
++
++    // BhobChaos_Load(&gInterfaceTable);
++    BhobFilt_Load(&gInterfaceTable);
++    // BhobPV_Load(&gInterfaceTable);
++    BhobGrains_Load(&gInterfaceTable);
++    BhobNoise_Load(&gInterfaceTable);
++
++    MCLDChaos_Load(&gInterfaceTable);
++    MCLDFilter_Load(&gInterfaceTable);
++    MCLDOsc_Load(&gInterfaceTable);
++
++    AnalogFoldOscUGens_Load(&gInterfaceTable);
++    RongsUGens_Load(&gInterfaceTable);
++    VA1PoleUGens_Load(&gInterfaceTable);
++    VADiodeFilterUGens_Load(&gInterfaceTable);
++    VAKorg35UGens_Load(&gInterfaceTable);
++    VALadderUGens_Load(&gInterfaceTable);
++    VadimFilterUGens_Load(&gInterfaceTable);
++
++    ExpRandN_Load(&gInterfaceTable);
++    IRandN_Load(&gInterfaceTable);
++    LinRandN_Load(&gInterfaceTable);
++    RBezier_Load(&gInterfaceTable);
++    RDX7_Load(&gInterfaceTable);
++    RFreezer_Load(&gInterfaceTable);
++    RObxdFilter_Load(&gInterfaceTable);
++    RandN_Load(&gInterfaceTable);
++    TExpRandN_Load(&gInterfaceTable);
++    TLinRandN_Load(&gInterfaceTable);
++    TRandN_Load(&gInterfaceTable);
++    TScramble_Load(&gInterfaceTable);
++
+     return;
+ #endif // STATIC_PLUGINS
+ 
