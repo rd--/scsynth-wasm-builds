@@ -1,8 +1,8 @@
 diff --git a/server/scsynth/CMakeLists.txt b/server/scsynth/CMakeLists.txt
-index e3547a6e1..9b6a96f78 100644
+index e3547a6e1..d77d2564d 100644
 --- a/server/scsynth/CMakeLists.txt
 +++ b/server/scsynth/CMakeLists.txt
-@@ -139,6 +139,75 @@ if (EMSCRIPTEN)
+@@ -139,6 +139,76 @@ if (EMSCRIPTEN)
  		FFT2InterfaceTable.cpp
  		FeatureDetection.cpp
  		PV_ThirdParty.cpp
@@ -62,6 +62,7 @@ index e3547a6e1..9b6a96f78 100644
 +                # sc3-rdu/cpp/RTracePlay.cpp
 +                # sc3-rdu/cpp/RTraceRd.cpp
 +                sc3-rdu/cpp/Bezier.cpp
++                sc3-rdu/cpp/BufMemCpy.cpp
 +                sc3-rdu/cpp/DX7.cpp
 +                sc3-rdu/cpp/DustRange.cpp
 +                sc3-rdu/cpp/ExpRandN.cpp
@@ -79,7 +80,7 @@ index e3547a6e1..9b6a96f78 100644
  	foreach(plugin ${plugin_sources_rel})
  		string(CONCAT plugin_abs ${CMAKE_SOURCE_DIR}/server/plugins/ ${plugin} )
 diff --git a/server/scsynth/SC_ComPort.cpp b/server/scsynth/SC_ComPort.cpp
-index 27687279d..d7b75760b 100644
+index 27687279d..700c48088 100644
 --- a/server/scsynth/SC_ComPort.cpp
 +++ b/server/scsynth/SC_ComPort.cpp
 @@ -152,7 +152,7 @@ static bool UnrollOSCPacket(World* inWorld, int inSize, char* inData, OSC_Packet
@@ -87,15 +88,15 @@ index 27687279d..d7b75760b 100644
  boost::asio::io_service ioService;
  
 -const int kTextBufSize = 65536;
-+const int kTextBufSize = 524288; // 65536 -> 524288 (rd)
++const int kTextBufSize = 4194304; // 65536 -> 524288 (rd)
  
  
  static void udp_reply_func(struct ReplyAddress* addr, char* msg, int size) {
 diff --git a/server/scsynth/SC_Lib_Cintf.cpp b/server/scsynth/SC_Lib_Cintf.cpp
-index a47a1232d..0f27fb426 100644
+index a47a1232d..64b1b614c 100644
 --- a/server/scsynth/SC_Lib_Cintf.cpp
 +++ b/server/scsynth/SC_Lib_Cintf.cpp
-@@ -109,6 +109,52 @@ extern void DynNoise_Load(InterfaceTable* table);
+@@ -109,6 +109,53 @@ extern void DynNoise_Load(InterfaceTable* table);
  extern void FFT_UGens_Load(InterfaceTable* table);
  extern void iPhone_Load(InterfaceTable* table);
  
@@ -133,6 +134,7 @@ index a47a1232d..0f27fb426 100644
 +extern void Slide_Load(InterfaceTable* table);
 +
 +extern void Bezier_Load(InterfaceTable* table);
++extern void BufMemCpy_Load(InterfaceTable* table);
 +extern void DX7_Load(InterfaceTable* table);
 +extern void DustRange_Load(InterfaceTable* table);
 +extern void ExpRandN_Load(InterfaceTable* table);
@@ -148,7 +150,7 @@ index a47a1232d..0f27fb426 100644
  
  void deinitialize_library() {
  #ifdef _WIN32
-@@ -166,6 +212,51 @@ void initialize_library(const char* uGensPluginPath) {
+@@ -166,6 +213,52 @@ void initialize_library(const char* uGensPluginPath) {
      iPhone_Load(&gInterfaceTable);
  #    endif
      FFT_UGens_Load(&gInterfaceTable);
@@ -184,6 +186,7 @@ index a47a1232d..0f27fb426 100644
 +    Slide_Load(&gInterfaceTable);
 +
 +    Bezier_Load(&gInterfaceTable);
++    BufMemCpy_Load(&gInterfaceTable);
 +    DX7_Load(&gInterfaceTable);
 +    DustRange_Load(&gInterfaceTable);
 +    ExpRandN_Load(&gInterfaceTable);
@@ -200,3 +203,11 @@ index a47a1232d..0f27fb426 100644
      return;
  #endif // STATIC_PLUGINS
  
+diff --git a/wasm/configure.sh b/wasm/configure.sh
+index 53cae82c1..c2f87d9c2 100755
+--- a/wasm/configure.sh
++++ b/wasm/configure.sh
+@@ -1,2 +1,2 @@
+ #!/bin/bash
+-emcmake cmake -DSC_EL=no -DSUPERNOVA=no -DSC_HIDAPI=no -DNO_LIBSNDFILE=yes -DSC_QT=no -DNO_AVAHI=yes -DSC_ABLETON_LINK=no -DCMAKE_BUILD_TYPE="Release" -Wno-dev -DPTHREADS_LIBRARY=ignore -DSSE=no -DSSE2=no -DNO_X11=yes --target scsynth ..
++emcmake cmake -DSC_EL=no -DSUPERNOVA=no -DSC_HIDAPI=no -DNO_LIBSNDFILE=yes -DSC_QT=no -DNO_AVAHI=yes -DSC_ABLETON_LINK=no -DCMAKE_BUILD_TYPE="Release" -Wno-dev -DPTHREADS_LIBRARY=ignore -DSSE=no -DSSE2=no -DNO_X11=yes ..

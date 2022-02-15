@@ -14,7 +14,7 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
 ### ext:
 
 - initial memory: 64mb
-- packet size: 512kb
+- packet size: 4mb
 - unit generators: default
   + sc3-plugins:
     - Bhob
@@ -39,5 +39,5 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
     - ExpRandN, IRandN, LinRandN, RandN, TExpRandN, TLinRandN, TRandN
     - TScramble
     - RBezier, RFreezer
-- date: 2022-02-09
-
+    - BufMemCpy
+- date: 2022-02-15
