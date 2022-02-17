@@ -13,7 +13,7 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
 
 ### ext:
 
-- initial memory: 64mb
+- initial memory: 256mb
 - packet size: 16mb
 - unit generators: default
   + sc3-plugins:

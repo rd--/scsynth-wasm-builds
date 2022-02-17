@@ -1,5 +1,5 @@
 diff --git a/server/scsynth/CMakeLists.txt b/server/scsynth/CMakeLists.txt
-index e3547a6e1..a111eaf96 100644
+index e3547a6e1..b209c03c3 100644
 --- a/server/scsynth/CMakeLists.txt
 +++ b/server/scsynth/CMakeLists.txt
 @@ -139,6 +139,79 @@ if (EMSCRIPTEN)
@@ -82,6 +82,15 @@ index e3547a6e1..a111eaf96 100644
  	)
  	foreach(plugin ${plugin_sources_rel})
  		string(CONCAT plugin_abs ${CMAKE_SOURCE_DIR}/server/plugins/ ${plugin} )
+@@ -297,7 +370,7 @@ endif()
+ 
+ if (EMSCRIPTEN)
+ 	set_target_properties(libscsynth boost_system_lib boost_filesystem_lib PROPERTIES LINK_FLAGS "-s USE_PTHREADS=1 -s WASM=1 -pthread -s DISABLE_EXCEPTION_CATCHING=0")
+-	set_target_properties(scsynth PROPERTIES LINK_FLAGS "-s USE_PTHREADS=1 -s WASM=1 -pthread --bind -s DISABLE_EXCEPTION_CATCHING=0 -s INITIAL_MEMORY=67108864 -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"ccall\",\"callMain\"] --pre-js ${CMAKE_SOURCE_DIR}/wasm/pre.js")
++	set_target_properties(scsynth PROPERTIES LINK_FLAGS "-s USE_PTHREADS=1 -s WASM=1 -pthread --bind -s DISABLE_EXCEPTION_CATCHING=0 -s INITIAL_MEMORY=268435456 -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"ccall\",\"callMain\"] --pre-js ${CMAKE_SOURCE_DIR}/wasm/pre.js")
+ 	set_property(TARGET scsynth libscsynth
+ 							 APPEND PROPERTY COMPILE_FLAGS "-pthread -DSTATIC_PLUGINS")
+ endif()
 diff --git a/server/scsynth/SC_ComPort.cpp b/server/scsynth/SC_ComPort.cpp
 index 27687279d..10dd37dbb 100644
 --- a/server/scsynth/SC_ComPort.cpp
