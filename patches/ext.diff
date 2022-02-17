@@ -1,8 +1,8 @@
 diff --git a/server/scsynth/CMakeLists.txt b/server/scsynth/CMakeLists.txt
-index e3547a6e1..d77d2564d 100644
+index e3547a6e1..a111eaf96 100644
 --- a/server/scsynth/CMakeLists.txt
 +++ b/server/scsynth/CMakeLists.txt
-@@ -139,6 +139,76 @@ if (EMSCRIPTEN)
+@@ -139,6 +139,79 @@ if (EMSCRIPTEN)
  		FFT2InterfaceTable.cpp
  		FeatureDetection.cpp
  		PV_ThirdParty.cpp
@@ -15,6 +15,7 @@ index e3547a6e1..d77d2564d 100644
 +                sc3-plugins/source/BhobUGens/BhobNoise.cpp
 +                sc3-plugins/source/DWGUGens/DWGPlucked.cpp
 +                sc3-plugins/source/JoshUGens/JoshGrainUGens.cpp
++                sc3-plugins/source/SkUGens/FM7.cpp
 +                sc3-plugins/source/VOSIMUGens/VOSIM.cpp
 +
 +                sc3-plugins/source/MCLDUGens/MCLDChaosUGens.cpp
@@ -44,6 +45,8 @@ index e3547a6e1..d77d2564d 100644
 +                vb_UGens/projects/vbJonVerb/vbJonVerb.cpp
 +                vb_UGens/projects/vbUtils/vbUtils.cpp
 +
++                squinewave/supercollider/plugins/Squine/Squine.cpp
++
 +                # sc3-rdu/cpp/PV_Split.cpp
 +                # sc3-rdu/cpp/RDL.cpp
 +                # sc3-rdu/cpp/RDX7Env.cpp
@@ -53,10 +56,6 @@ index e3547a6e1..d77d2564d 100644
 +                # sc3-rdu/cpp/RLagC.cpp
 +                # sc3-rdu/cpp/RLoopSet.cpp
 +                # sc3-rdu/cpp/RPVDecayTbl.cpp
-+                # sc3-rdu/cpp/RSVFBP.cpp
-+                # sc3-rdu/cpp/RSVFHP.cpp
-+                # sc3-rdu/cpp/RSVFLP.cpp
-+                # sc3-rdu/cpp/RShufflerB.cpp
 +                # sc3-rdu/cpp/RShufflerL.cpp
 +                # sc3-rdu/cpp/RSmplrIndex.cpp
 +                # sc3-rdu/cpp/RTracePlay.cpp
@@ -66,11 +65,15 @@ index e3547a6e1..d77d2564d 100644
 +                sc3-rdu/cpp/DX7.cpp
 +                sc3-rdu/cpp/DustRange.cpp
 +                sc3-rdu/cpp/ExpRandN.cpp
++                sc3-rdu/cpp/Freezer.cpp
 +                sc3-rdu/cpp/IRandN.cpp
 +                sc3-rdu/cpp/LinRandN.cpp
-+                sc3-rdu/cpp/RFreezer.cpp
-+                sc3-rdu/cpp/RObxdFilter.cpp
++                sc3-rdu/cpp/ObxdFilter.cpp
 +                sc3-rdu/cpp/RandN.cpp
++                sc3-rdu/cpp/ShufflerB.cpp
++                sc3-rdu/cpp/SvfBp.cpp
++                sc3-rdu/cpp/SvfHp.cpp
++                sc3-rdu/cpp/SvfLp.cpp
 +                sc3-rdu/cpp/TExpRandN.cpp
 +                sc3-rdu/cpp/TLinRandN.cpp
 +                sc3-rdu/cpp/TRandN.cpp
@@ -80,7 +83,7 @@ index e3547a6e1..d77d2564d 100644
  	foreach(plugin ${plugin_sources_rel})
  		string(CONCAT plugin_abs ${CMAKE_SOURCE_DIR}/server/plugins/ ${plugin} )
 diff --git a/server/scsynth/SC_ComPort.cpp b/server/scsynth/SC_ComPort.cpp
-index 27687279d..700c48088 100644
+index 27687279d..10dd37dbb 100644
 --- a/server/scsynth/SC_ComPort.cpp
 +++ b/server/scsynth/SC_ComPort.cpp
 @@ -152,7 +152,7 @@ static bool UnrollOSCPacket(World* inWorld, int inSize, char* inData, OSC_Packet
@@ -88,15 +91,15 @@ index 27687279d..700c48088 100644
  boost::asio::io_service ioService;
  
 -const int kTextBufSize = 65536;
-+const int kTextBufSize = 4194304; // 65536 -> 524288 (rd)
++const int kTextBufSize = 16777216; // 65536 -> 524288 -> 4194304 (rd)
  
  
  static void udp_reply_func(struct ReplyAddress* addr, char* msg, int size) {
 diff --git a/server/scsynth/SC_Lib_Cintf.cpp b/server/scsynth/SC_Lib_Cintf.cpp
-index a47a1232d..64b1b614c 100644
+index a47a1232d..79747ba21 100644
 --- a/server/scsynth/SC_Lib_Cintf.cpp
 +++ b/server/scsynth/SC_Lib_Cintf.cpp
-@@ -109,6 +109,53 @@ extern void DynNoise_Load(InterfaceTable* table);
+@@ -109,6 +109,60 @@ extern void DynNoise_Load(InterfaceTable* table);
  extern void FFT_UGens_Load(InterfaceTable* table);
  extern void iPhone_Load(InterfaceTable* table);
  
@@ -115,6 +118,7 @@ index a47a1232d..64b1b614c 100644
 +extern void MCLDFilter_Load(InterfaceTable *table);
 +extern void MCLDOsc_Load(InterfaceTable *table);
 +extern void JoshGrain_Load(InterfaceTable *table);
++extern void FM7_Load(InterfaceTable *table);
 +extern void VOSIM_Load(InterfaceTable *table);
 +
 +extern void AnalogFoldOscUGens_Load(InterfaceTable *table);
@@ -133,16 +137,22 @@ index a47a1232d..64b1b614c 100644
 +extern void VBJonVerb_Load(InterfaceTable* table);
 +extern void Slide_Load(InterfaceTable* table);
 +
++extern void SquineUGens_Load(InterfaceTable* table);
++
 +extern void Bezier_Load(InterfaceTable* table);
 +extern void BufMemCpy_Load(InterfaceTable* table);
 +extern void DX7_Load(InterfaceTable* table);
 +extern void DustRange_Load(InterfaceTable* table);
 +extern void ExpRandN_Load(InterfaceTable* table);
++extern void Freezer_Load(InterfaceTable* table);
 +extern void IRandN_Load(InterfaceTable* table);
 +extern void LinRandN_Load(InterfaceTable* table);
-+extern void RFreezer_Load(InterfaceTable* table);
-+extern void RObxdFilter_Load(InterfaceTable* table);
++extern void ObxdFilter_Load(InterfaceTable* table);
 +extern void RandN_Load(InterfaceTable* table);
++extern void ShufflerB_Load(InterfaceTable* table);
++extern void SvfBp_Load(InterfaceTable* table);
++extern void SvfHp_Load(InterfaceTable* table);
++extern void SvfLp_Load(InterfaceTable* table);
 +extern void TExpRandN_Load(InterfaceTable* table);
 +extern void TLinRandN_Load(InterfaceTable* table);
 +extern void TRandN_Load(InterfaceTable* table);
@@ -150,7 +160,7 @@ index a47a1232d..64b1b614c 100644
  
  void deinitialize_library() {
  #ifdef _WIN32
-@@ -166,6 +213,52 @@ void initialize_library(const char* uGensPluginPath) {
+@@ -166,6 +220,59 @@ void initialize_library(const char* uGensPluginPath) {
      iPhone_Load(&gInterfaceTable);
  #    endif
      FFT_UGens_Load(&gInterfaceTable);
@@ -166,6 +176,7 @@ index a47a1232d..64b1b614c 100644
 +    MCLDFilter_Load(&gInterfaceTable);
 +    MCLDOsc_Load(&gInterfaceTable);
 +    JoshGrain_Load(&gInterfaceTable);
++    FM7_Load(&gInterfaceTable);
 +    VOSIM_Load(&gInterfaceTable);
 +
 +    AnalogFoldOscUGens_Load(&gInterfaceTable);
@@ -185,16 +196,22 @@ index a47a1232d..64b1b614c 100644
 +    VBJonVerb_Load(&gInterfaceTable);
 +    Slide_Load(&gInterfaceTable);
 +
++    SquineUGens_Load(&gInterfaceTable);
++
 +    Bezier_Load(&gInterfaceTable);
 +    BufMemCpy_Load(&gInterfaceTable);
 +    DX7_Load(&gInterfaceTable);
 +    DustRange_Load(&gInterfaceTable);
 +    ExpRandN_Load(&gInterfaceTable);
++    Freezer_Load(&gInterfaceTable);
 +    IRandN_Load(&gInterfaceTable);
 +    LinRandN_Load(&gInterfaceTable);
-+    RFreezer_Load(&gInterfaceTable);
-+    RObxdFilter_Load(&gInterfaceTable);
++    ObxdFilter_Load(&gInterfaceTable);
 +    RandN_Load(&gInterfaceTable);
++    ShufflerB_Load(&gInterfaceTable);
++    SvfBp_Load(&gInterfaceTable);
++    SvfHp_Load(&gInterfaceTable);
++    SvfLp_Load(&gInterfaceTable);
 +    TExpRandN_Load(&gInterfaceTable);
 +    TLinRandN_Load(&gInterfaceTable);
 +    TRandN_Load(&gInterfaceTable);

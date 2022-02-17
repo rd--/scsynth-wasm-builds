@@ -14,7 +14,7 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
 ### ext:
 
 - initial memory: 64mb
-- packet size: 4mb
+- packet size: 16mb
 - unit generators: default
   + sc3-plugins:
     - Bhob
@@ -25,6 +25,11 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
       + Chaos: RosslerL, FincoSprott{LMS}, Perlin3
 	  + Filters: Friction, Crest, Goertzel
       + Osc: SawDPW
+    - Josh
+      + Grain
+    - SkUGens
+      + FM7
+    - VOSIM
   + portedplugins
     - AnalogFoldOsc
     - Rongs
@@ -40,4 +45,4 @@ These builds are made using the archive at [dylans:wasm-no-submodules](https://g
     - TScramble
     - RBezier, RFreezer
     - BufMemCpy
-- date: 2022-02-15
+- date: 2022-02-17
