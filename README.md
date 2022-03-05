@@ -4,6 +4,13 @@ This archive has [web assembly](https://webassembly.org/) builds of the [SuperCo
 
 These builds are made using the archive at [dylans:wasm-no-submodules](https://github.com/dylans/supercollider/tree/wasm-no-submodules)
 
+The port of scsynth to web assembly was made by [Hanns Holger Rutz](https://www.sciss.de/):
+
+- <https://github.com/Sciss/supercollider/tree/wasm>
+- <https://scsynth.org/t/webassembly-support/3037/6>
+- <https://github.com/supercollider/supercollider/issues/5224>
+- <https://github.com/supercollider/supercollider/pull/5571>
+
 ### core:
 
 - initial memory: 64mb
