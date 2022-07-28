@@ -1,5 +1,5 @@
 diff --git a/server/scsynth/CMakeLists.txt b/server/scsynth/CMakeLists.txt
-index e3547a6e1..b209c03c3 100644
+index e3547a6e1..2459cf75b 100644
 --- a/server/scsynth/CMakeLists.txt
 +++ b/server/scsynth/CMakeLists.txt
 @@ -139,6 +139,79 @@ if (EMSCRIPTEN)
@@ -47,23 +47,23 @@ index e3547a6e1..b209c03c3 100644
 +
 +                squinewave/supercollider/plugins/Squine/Squine.cpp
 +
++                # sc3-rdu/cpp/DelayMap.cpp
++                # sc3-rdu/cpp/DelaySet.cpp
++                # sc3-rdu/cpp/DelaySetBuf.cpp
++                # sc3-rdu/cpp/Dl.cpp
++                # sc3-rdu/cpp/LagC.cpp
++                # sc3-rdu/cpp/LoopSet.cpp
++                # sc3-rdu/cpp/PV_DecayTable.cpp
 +                # sc3-rdu/cpp/PV_Split.cpp
-+                # sc3-rdu/cpp/RDL.cpp
-+                # sc3-rdu/cpp/RDX7Env.cpp
-+                # sc3-rdu/cpp/RDelayMap.cpp
-+                # sc3-rdu/cpp/RDelaySet.cpp
-+                # sc3-rdu/cpp/RDelaySetBuf.cpp
-+                # sc3-rdu/cpp/RLagC.cpp
-+                # sc3-rdu/cpp/RLoopSet.cpp
-+                # sc3-rdu/cpp/RPVDecayTbl.cpp
-+                # sc3-rdu/cpp/RShufflerL.cpp
-+                # sc3-rdu/cpp/RSmplrIndex.cpp
-+                # sc3-rdu/cpp/RTracePlay.cpp
-+                # sc3-rdu/cpp/RTraceRd.cpp
++                # sc3-rdu/cpp/Rdx7Env.cpp
++                # sc3-rdu/cpp/SamplerIndex.cpp
++                # sc3-rdu/cpp/ShufflerL.cpp
++                # sc3-rdu/cpp/TracePlay.cpp
++                # sc3-rdu/cpp/TraceRead.cpp
 +                sc3-rdu/cpp/Bezier.cpp
 +                sc3-rdu/cpp/BufMemCpy.cpp
-+                sc3-rdu/cpp/DX7.cpp
 +                sc3-rdu/cpp/DustRange.cpp
++                sc3-rdu/cpp/Dx7.cpp
 +                sc3-rdu/cpp/ExpRandN.cpp
 +                sc3-rdu/cpp/Freezer.cpp
 +                sc3-rdu/cpp/IRandN.cpp
@@ -105,7 +105,7 @@ index 27687279d..10dd37dbb 100644
  
  static void udp_reply_func(struct ReplyAddress* addr, char* msg, int size) {
 diff --git a/server/scsynth/SC_Lib_Cintf.cpp b/server/scsynth/SC_Lib_Cintf.cpp
-index a47a1232d..79747ba21 100644
+index a47a1232d..7e837df54 100644
 --- a/server/scsynth/SC_Lib_Cintf.cpp
 +++ b/server/scsynth/SC_Lib_Cintf.cpp
 @@ -109,6 +109,60 @@ extern void DynNoise_Load(InterfaceTable* table);
@@ -150,7 +150,7 @@ index a47a1232d..79747ba21 100644
 +
 +extern void Bezier_Load(InterfaceTable* table);
 +extern void BufMemCpy_Load(InterfaceTable* table);
-+extern void DX7_Load(InterfaceTable* table);
++extern void Dx7_Load(InterfaceTable* table);
 +extern void DustRange_Load(InterfaceTable* table);
 +extern void ExpRandN_Load(InterfaceTable* table);
 +extern void Freezer_Load(InterfaceTable* table);
@@ -181,11 +181,11 @@ index a47a1232d..79747ba21 100644
 +    BhobGrains_Load(&gInterfaceTable);
 +    BhobNoise_Load(&gInterfaceTable);
 +    DWGPlucked_Load(&gInterfaceTable);
++    FM7_Load(&gInterfaceTable);
++    JoshGrain_Load(&gInterfaceTable);
 +    MCLDChaos_Load(&gInterfaceTable);
 +    MCLDFilter_Load(&gInterfaceTable);
 +    MCLDOsc_Load(&gInterfaceTable);
-+    JoshGrain_Load(&gInterfaceTable);
-+    FM7_Load(&gInterfaceTable);
 +    VOSIM_Load(&gInterfaceTable);
 +
 +    AnalogFoldOscUGens_Load(&gInterfaceTable);
@@ -199,17 +199,17 @@ index a47a1232d..79747ba21 100644
 +    // VBPVoc_Load(&gInterfaceTable);
 +    RCD_Load(&gInterfaceTable);
 +    SCM_Load(&gInterfaceTable);
++    Slide_Load(&gInterfaceTable);
 +    VBChebyFilt_Load(&gInterfaceTable);
 +    VBChebyFilt_Load(&gInterfaceTable);
 +    VBFourses_Load(&gInterfaceTable);
 +    VBJonVerb_Load(&gInterfaceTable);
-+    Slide_Load(&gInterfaceTable);
 +
 +    SquineUGens_Load(&gInterfaceTable);
 +
 +    Bezier_Load(&gInterfaceTable);
 +    BufMemCpy_Load(&gInterfaceTable);
-+    DX7_Load(&gInterfaceTable);
++    Dx7_Load(&gInterfaceTable);
 +    DustRange_Load(&gInterfaceTable);
 +    ExpRandN_Load(&gInterfaceTable);
 +    Freezer_Load(&gInterfaceTable);
