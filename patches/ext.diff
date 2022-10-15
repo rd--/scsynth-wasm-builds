@@ -55,7 +55,7 @@ index e3547a6e1..2459cf75b 100644
 +                # sc3-rdu/cpp/LoopSet.cpp
 +                # sc3-rdu/cpp/PV_DecayTable.cpp
 +                # sc3-rdu/cpp/PV_Split.cpp
-+                # sc3-rdu/cpp/Rdx7Env.cpp
++                # sc3-rdu/cpp/Dx7Env.cpp
 +                # sc3-rdu/cpp/SamplerIndex.cpp
 +                # sc3-rdu/cpp/ShufflerL.cpp
 +                # sc3-rdu/cpp/TracePlay.cpp

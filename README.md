@@ -47,9 +47,9 @@ The port of scsynth to web assembly was made by [Hanns Holger Rutz](https://www.
     - VBChebyFilt, VBFourses, VBJonVerb
     - Lores, Slide
   + sc3-rdu:
-    - RDX7, RObxdFilter
+    - Dx7, ObxdFilter
     - ExpRandN, IRandN, LinRandN, RandN, TExpRandN, TLinRandN, TRandN
     - TScramble
-    - RBezier, RFreezer
+    - Bezier, Freezer
     - BufMemCpy
-- date: 2022-02-17
+- date: 2022-10-16
