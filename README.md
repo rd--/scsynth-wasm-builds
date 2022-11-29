@@ -53,3 +53,9 @@ The port of scsynth to web assembly was made by [Hanns Holger Rutz](https://www.
     - Bezier, Freezer
     - BufMemCpy
 - date: 2022-10-16
+
+## JsSc3 & Spl
+
+This archive also has builds of the related projects <https://gitlab.com/rd--/jssc3> and <https://gitlab.com/rd--/spl>.
+
+The builds are made by _deno bundle_.
