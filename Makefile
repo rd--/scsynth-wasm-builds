@@ -3,11 +3,11 @@ all:
 
 update-jssc3:
 	(cd ~/sw/jssc3/ts ; make)
-	cp ~/sw/jssc3/js/jssc3.js jssc3/js
+	cp ~/sw/jssc3/dist/jssc3.js jssc3/dist
 
 update-spl:
 	(cd ~/sw/spl/ts ; make)
-	cp ~/sw/spl/js/sl.js spl/js
+	cp ~/sw/spl/dist/sl.js spl/dist
 
 push-all:
 	r.gitlab-push.sh scsynth-wasm-builds
