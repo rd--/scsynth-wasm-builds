@@ -9073,8 +9073,12 @@ const operatorNameTable = {
     '$': 'dollar'
 };
 export { PriorityQueue as PriorityQueue };
+function isStringDictionary(anObject) {
+    const c = anObject.constructor;
+    return c === undefined || c.name === 'Object';
+}
 function objectType(anObject) {
-    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'IdentityDictionary' : anObject instanceof Set ? 'IdentitySet' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject.type || anObject.constructor.name;
+    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'IdentityDictionary' : anObject instanceof Set ? 'IdentitySet' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject.type || (isStringDictionary(anObject) ? 'StringDictionary' : anObject.constructor.name);
 }
 function typeOf(anObject) {
     if (anObject === null || anObject === undefined) {

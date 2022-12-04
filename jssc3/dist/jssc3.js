@@ -306,23 +306,42 @@ function get_selected_text_or_contents_of(elemId) {
         return element ? element.innerText.trim() : '';
     }
 }
+function setInnerHtml(elementId, innerHtml) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.innerHTML = innerHtml;
+    } else {
+        console.warn(`setInnerHtml: ${elementId}: element not located`);
+    }
+}
+function setTextContent(elementId, textContent) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = textContent;
+    } else {
+        console.warn(`setTextContent: ${elementId}: element not located`);
+    }
+}
 function setter_for_inner_html_of(elemId) {
     const elem = document.getElementById(elemId);
     return function(innerHtml) {
         if (elem) {
             elem.innerHTML = innerHtml;
         } else {
-            console.warn('setter_for_inner_html_of: elem was nil?');
+            console.warn(`setter_for_inner_html_of: ${elemId}: elem was nil`);
         }
     };
 }
-function get_select_element_and_then(selectId, proc) {
-    const selectElement = document.getElementById(selectId);
-    if (!selectElement) {
-        console.error('get_select_element: not found: ', selectId);
+function withElement(elementId, elementProcedure) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        console.error('withElement: not found: ', elementId);
     } else {
-        proc(selectElement);
+        elementProcedure(element);
     }
+}
+function get_select_element_and_then(selectId, selectProcedure) {
+    withElement(selectId, selectProcedure);
 }
 function select_on_change(selectId, proc) {
     const guardedProc = function(anEvent) {
@@ -410,7 +429,10 @@ function prompt_for_int_and_then(promptText, defaultValue, proc) {
 }
 export { get_selected_text as get_selected_text };
 export { get_selected_text_or_contents_of as get_selected_text_or_contents_of };
+export { setInnerHtml as setInnerHtml };
+export { setTextContent as setTextContent };
 export { setter_for_inner_html_of as setter_for_inner_html_of };
+export { withElement as withElement };
 export { get_select_element_and_then as get_select_element_and_then };
 export { select_on_change as select_on_change };
 export { select_add_option_to as select_add_option_to };
@@ -558,17 +580,25 @@ function read_text_file_and_then(textFile, proc) {
     reader.addEventListener('load', ()=>proc(reader.result), false);
     reader.readAsText(textFile);
 }
-function read_text_file_from_file_input_and_then(inputId, fileIndex, proc) {
+function get_file_input_file(inputId, fileIndex) {
     const inputElement = document.getElementById(inputId);
     if (inputElement.files) {
         const inputFile = inputElement.files[fileIndex];
-        if (inputFile) {
-            read_text_file_and_then(inputFile, proc);
-        } else {
-            console.warn('read_text_file_from_file_input_and_then: no input file at index?');
+        if (!inputFile) {
+            console.warn('get_file_input_file: no input file at index?');
         }
+        return inputFile;
     } else {
-        console.warn('read_text_file_from_file_input_and_then: no files at input element?');
+        console.warn('get_file_input_file: no files at input element?');
+        return null;
+    }
+}
+function read_text_file_from_file_input_and_then(inputId, fileIndex, proc) {
+    const inputFile = get_file_input_file(inputId, fileIndex);
+    if (inputFile) {
+        read_text_file_and_then(inputFile, proc);
+    } else {
+        console.warn('read_text_file_from_file_input_and_then: no input file at index?');
     }
 }
 function read_text_file_from_file_input_and_set_element_text(inputId, fileIndex, textId) {
@@ -594,6 +624,7 @@ export { load_utf8_and_then as load_utf8_and_then };
 export { load_json_and_then as load_json_and_then };
 export { load_arraybuffer_and_then as load_arraybuffer_and_then };
 export { read_text_file_and_then as read_text_file_and_then };
+export { get_file_input_file as get_file_input_file };
 export { read_text_file_from_file_input_and_then as read_text_file_from_file_input_and_then };
 export { read_text_file_from_file_input_and_set_element_text as read_text_file_from_file_input_and_set_element_text };
 export { read_json_file_and_then as read_json_file_and_then };
@@ -1067,111 +1098,111 @@ export { rateDr as rateDr };
 export { rateSelectorTable as rateSelectorTable };
 export { rateSelector as rateSelector };
 const unaryOperators = {
-    neg: 0,
-    not: 1,
-    isNil: 2,
-    notNil: 3,
-    bitNot: 4,
-    abs: 5,
-    asFloat: 6,
-    asInt: 7,
-    ceil: 8,
-    floor: 9,
-    frac: 10,
-    sign: 11,
-    squared: 12,
-    cubed: 13,
-    sqrt: 14,
-    exp: 15,
-    recip: 16,
-    midiCps: 17,
-    cpsMidi: 18,
-    midiRatio: 19,
-    ratioMidi: 20,
-    dbAmp: 21,
-    ampDb: 22,
-    octCps: 23,
-    cpsOct: 24,
-    log: 25,
-    log2: 26,
-    log10: 27,
-    sin: 28,
-    cos: 29,
-    tan: 30,
-    arcSin: 31,
-    arcCos: 32,
-    arcTan: 33,
-    sinH: 34,
-    cosH: 35,
-    tanH: 36,
-    rand_: 37,
-    rand2_: 38,
-    linRand_: 39,
-    biLinRand: 40,
-    sum3Rand: 41,
-    distort: 42,
-    softClip: 43,
-    coin: 44,
-    digitValue: 45,
-    silence: 46,
-    thru: 47,
-    rectWindow: 48,
-    hanWindow: 49,
-    welchWindow: 50,
-    triWindow: 51,
-    ramp_: 52,
-    scurve: 53
+    Neg: 0,
+    Not: 1,
+    IsNil: 2,
+    NotNil: 3,
+    BitNot: 4,
+    Abs: 5,
+    AsFloat: 6,
+    AsInt: 7,
+    Ceil: 8,
+    Floor: 9,
+    Frac: 10,
+    Sign: 11,
+    Squared: 12,
+    Cubed: 13,
+    Sqrt: 14,
+    Exp: 15,
+    Recip: 16,
+    MidiCps: 17,
+    CpsMidi: 18,
+    MidiRatio: 19,
+    RatioMidi: 20,
+    DbAmp: 21,
+    AmpDb: 22,
+    OctCps: 23,
+    CpsOct: 24,
+    Log: 25,
+    Log2: 26,
+    Log10: 27,
+    Sin: 28,
+    Cos: 29,
+    Tan: 30,
+    ArcSin: 31,
+    ArcCos: 32,
+    ArcTan: 33,
+    SinH: 34,
+    CosH: 35,
+    TanH: 36,
+    Rand_: 37,
+    Rand2_: 38,
+    LinRand_: 39,
+    BiLinRand: 40,
+    Sum3Rand: 41,
+    Distort: 42,
+    SoftClip: 43,
+    Coin: 44,
+    DigitValue: 45,
+    Silence: 46,
+    Thru: 47,
+    RectWindow: 48,
+    HanWindow: 49,
+    WelchWindow: 50,
+    TriWindow: 51,
+    Ramp_: 52,
+    Scurve: 53
 };
 const binaryOperators = {
-    add: 0,
-    sub: 1,
-    mul: 2,
-    idiv: 3,
-    fdiv: 4,
-    mod: 5,
-    eq: 6,
-    ne: 7,
-    lt: 8,
-    gt: 9,
-    le: 10,
-    ge: 11,
-    min: 12,
-    max: 13,
-    bitAnd: 14,
-    bitOr: 15,
-    bitXor: 16,
-    lcm: 17,
-    gcd: 18,
-    roundTo: 19,
-    roundUp: 20,
-    trunc: 21,
-    atan2: 22,
-    hypot: 23,
-    hypotx: 24,
-    pow: 25,
-    shiftLeft: 26,
-    shiftRight: 27,
-    unsignedShift: 28,
-    fill: 29,
-    ring1: 30,
-    ring2: 31,
-    ring3: 32,
-    ring4: 33,
-    difSqr: 34,
-    sumSqr: 35,
-    sqrSum: 36,
-    sqrDif: 37,
-    absDif: 38,
-    thresh: 39,
-    amClip: 40,
-    scaleNeg: 41,
-    clip2: 42,
-    excess: 43,
-    fold2: 44,
-    wrap2: 45,
-    firstArg: 46,
-    randRange: 47,
-    expRandRange: 48
+    Add: 0,
+    Sub: 1,
+    Mul: 2,
+    Idiv: 3,
+    Fdiv: 4,
+    Mod: 5,
+    Eq: 6,
+    Ne: 7,
+    Lt: 8,
+    Gt: 9,
+    Le: 10,
+    Ge: 11,
+    Min: 12,
+    Max: 13,
+    BitAnd: 14,
+    BitOr: 15,
+    BitXor: 16,
+    Lcm: 17,
+    Gcd: 18,
+    RoundTo: 19,
+    RoundUp: 20,
+    Trunc: 21,
+    Atan2: 22,
+    Hypot: 23,
+    Hypotx: 24,
+    Pow: 25,
+    ShiftLeft: 26,
+    ShiftRight: 27,
+    UnsignedShift: 28,
+    Fill: 29,
+    Ring1: 30,
+    Ring2: 31,
+    Ring3: 32,
+    Ring4: 33,
+    DifSqr: 34,
+    SumSqr: 35,
+    SqrSum: 36,
+    SqrDif: 37,
+    AbsDif: 38,
+    Thresh: 39,
+    AmClip: 40,
+    ScaleNeg: 41,
+    Clip2: 42,
+    Excess: 43,
+    Fold2: 44,
+    Wrap2: 45,
+    FirstArg: 46,
+    RandRange: 47,
+    ExpRandRange: 48
 };
 function unaryOperatorName(specialIndex) {
     return Object.keys(unaryOperators).find((key)=>unaryOperators[key] === specialIndex) || 'unknown unary operator name?';
@@ -5525,13 +5556,13 @@ function rounded(aNumber) {
     return RoundTo(aNumber, 1);
 }
 function sin(aNumber) {
-    return Sin(aNumber, 1);
+    return Sin(aNumber);
 }
 function sqrt(aNumber) {
-    return Sqrt(aNumber, 1);
+    return Sqrt(aNumber);
 }
 function tanh(aNumber) {
-    return Tanh(aNumber, 1);
+    return Tanh(aNumber);
 }
 function max(a, b) {
     return Max(a, b);
@@ -5697,298 +5728,3 @@ function OverlapTexture(graphFunc, sustainTime, transitionTime, overlap) {
     return arrayReduce(arrayMap(voiceFunction, arrayFromTo(0, overlap - 1)), Add);
 }
 export { OverlapTexture as OverlapTexture };
-const notation = {
-    format: '.stc'
-};
-function resolve_file_type(fileType) {
-    return fileType ? fileType : notation.format;
-}
-function set_notation_format() {
-    get_select_element_and_then('notationFormat', (selectElement)=>notation.format = selectElement.value);
-}
-const notationTranslationTable = {
-    '.js': function(text, proc) {
-        proc(text);
-    },
-    '.stc': stc_to_js_and_then
-};
-function translate_if_required_and_then(userText, proc) {
-    const translator = notationTranslationTable[notation.format];
-    if (translator) {
-        translator(userText, proc);
-    } else {
-        console.error(`translate_if_required_and_then: unknown format: ${notation.format}`);
-    }
-}
-export { notation as notation };
-export { resolve_file_type as resolve_file_type };
-export { set_notation_format as set_notation_format };
-export { notationTranslationTable as notationTranslationTable };
-export { translate_if_required_and_then as translate_if_required_and_then };
-const editor = {};
-function editor_get_js_notation_and_then(proc) {
-    translate_if_required_and_then(editor.get_selected_text(), proc);
-}
-function jssc3_read_input_program() {
-    read_text_file_from_file_input_and_then('programInputFile', 0, editor.set_data);
-}
-function prettyPrintSyndef() {
-    editor_get_js_notation_and_then(function(programText) {
-        prettyPrintSyndefOf(eval(programText));
-    });
-}
-function evalJsProgram() {
-    editor_get_js_notation_and_then(function(programText) {
-        const result = eval(programText);
-        console.log(result);
-    });
-}
-function playJsProgram(scsynth, groupId) {
-    editor_get_js_notation_and_then(function(programText) {
-        const result = eval(programText);
-        playUgen(scsynth, result, groupId);
-    });
-}
-function set_url_to_encode_selection() {
-    window_url_set_param('s', editor.get_selected_text());
-}
-export { editor as editor };
-export { editor_get_js_notation_and_then as editor_get_js_notation_and_then };
-export { jssc3_read_input_program as jssc3_read_input_program };
-export { prettyPrintSyndef as prettyPrintSyndef };
-export { evalJsProgram as evalJsProgram };
-export { playJsProgram as playJsProgram };
-export { set_url_to_encode_selection as set_url_to_encode_selection };
-const user = {
-    programs: {},
-    storage_key: ''
-};
-function user_program_menu_init(editor_set_program) {
-    const stored = localStorage.getItem(user.storage_key);
-    user.programs = stored ? JSON.parse(stored) : {};
-    select_on_change('userMenu', (_menuElement, programName)=>editor_set_program(user.programs[programName]));
-    select_add_keys_as_options('userMenu', Object.keys(user.programs));
-}
-function user_program_save_to(program_text) {
-    const timeStamp = new Date().toISOString();
-    const programName = window.prompt('Set program name', timeStamp);
-    if (programName) {
-        user.programs[programName] = program_text;
-        localStorage.setItem(user.storage_key, JSON.stringify(user.programs));
-        select_add_option_at_id('userMenu', programName, programName);
-    }
-}
-function user_program_clear() {
-    if (window.confirm("Clear user program storage?")) {
-        select_clear_from('userMenu', 1);
-        localStorage.removeItem(user.storage_key);
-    }
-}
-function user_storage_sync() {
-    localStorage.setItem(user.storage_key, JSON.stringify(user.programs));
-    select_clear_from('userMenu', 1);
-    select_add_keys_as_options('userMenu', Object.keys(user.programs));
-}
-function user_program_read_archive() {
-    const fileInput = document.getElementById('userProgramArchiveFile');
-    const fileList = fileInput.files;
-    const jsonFile = fileList[0];
-    if (fileInput && fileList && jsonFile) {
-        consoleDebug(`user_program_read_archive: ${jsonFile}`);
-        read_json_file_and_then(jsonFile, function(obj) {
-            consoleDebug(`user_program_read_archive: ${obj}`);
-            Object.assign(user.programs, obj);
-            user_storage_sync();
-        });
-    } else {
-        console.error('user_program_read_archive');
-    }
-}
-function ui_save_program() {
-    user_program_save_to(editor.get_data());
-}
-export { user as user };
-export { user_program_menu_init as user_program_menu_init };
-export { user_program_save_to as user_program_save_to };
-export { user_program_clear as user_program_clear };
-export { user_storage_sync as user_storage_sync };
-export { user_program_read_archive as user_program_read_archive };
-export { ui_save_program as ui_save_program };
-function action_user_backup() {
-    navigator.clipboard.writeText(JSON.stringify(user.programs));
-}
-function action_user_restore() {
-    const inputElement = document.getElementById('userProgramArchiveFile');
-    inputElement.click();
-}
-function action_set_hardware_buffer_size(scsynthOptions) {
-    prompt_for_int_and_then('Set hardware buffer size', scsynthOptions.hardwareBufferSize, function(aNumber) {
-        scsynthOptions.hardwareBufferSize = aNumber;
-    });
-}
-function action_set_block_size(scsynthOptions) {
-    prompt_for_int_and_then('Set block size', scsynthOptions.blockSize, function(aNumber) {
-        scsynthOptions.blockSize = aNumber;
-    });
-}
-function action_set_num_inputs(scsynthOptions) {
-    prompt_for_int_and_then('Set number of inputs', scsynthOptions.numInputs, function(aNumber) {
-        scsynthOptions.numInputs = aNumber;
-    });
-}
-function actions_menu_do(scsynthOptions, editor_get_selected, editor_set, menuElement, entryName) {
-    console.log('actions_menu_do', entryName);
-    switch(entryName){
-        case 'setBlockSize':
-            action_set_block_size(scsynthOptions);
-            break;
-        case 'setHardwareBufferSize':
-            action_set_hardware_buffer_size(scsynthOptions);
-            break;
-        case 'setNumInputs':
-            action_set_num_inputs(scsynthOptions);
-            break;
-        case 'userBackup':
-            action_user_backup();
-            break;
-        case 'userRestore':
-            action_user_restore();
-            break;
-        case 'userPurge':
-            user_program_clear();
-            break;
-        case 'documentVisit':
-            load_utf8_and_then(editor_get_selected(), editor_set);
-            break;
-        default:
-            console.error('actions_menu_do: unknown action', entryName);
-    }
-    menuElement.selectedIndex = 0;
-}
-function actions_menu_init(scsynthOptions, editor_get_selected, editor_set) {
-    select_on_change('actionsMenu', function(menuElement, entryName) {
-        actions_menu_do(scsynthOptions, editor_get_selected, editor_set, menuElement, entryName);
-    });
-}
-export { action_user_backup as action_user_backup };
-export { action_user_restore as action_user_restore };
-export { actions_menu_do as actions_menu_do };
-export { actions_menu_init as actions_menu_init };
-function setStatusDisplay(text) {
-    const statusText = document.getElementById('statusText');
-    if (statusText) {
-        statusText.innerHTML = text;
-    } else {
-        console.log(text);
-    }
-}
-export { setStatusDisplay as setStatusDisplay };
-function graph_load(graphDir, graphName, fileType) {
-    const graphFileName = `help/${graphDir}/${graphName}${resolve_file_type(fileType)}`;
-    const graphUrl = url_append_timestamp(graphFileName);
-    consoleLogMessageFrom('load_graph', graphName);
-    fetch_url_and_then(graphUrl, 'text', (programText)=>editor.set_data(programText));
-}
-function graph_menu_init(menuId, graphDir, fileType, loadProc) {
-    const menu = document.getElementById(menuId);
-    if (menu) {
-        menu.addEventListener('change', function(anEvent) {
-            const target = anEvent.target;
-            if (target && target.value) {
-                loadProc(graphDir, target.value, resolve_file_type(fileType));
-            }
-        });
-    } else {
-        consoleWarn(`graph_menu_init: no element: ${menuId}`);
-    }
-}
-export { graph_load as graph_load };
-export { graph_menu_init as graph_menu_init };
-const defaultUiInitOptions = {
-    subDir: '',
-    hasProgramMenu: false,
-    hasHelpMenu: false,
-    hasGuideMenu: false,
-    hasEssayMenu: false,
-    fileExt: null,
-    storageKey: '',
-    loadProc: null,
-    initWasm: true,
-    hardwareBufferSize: 4096,
-    blockSize: 48
-};
-function sc3_ui_init(scsynth, options) {
-    if (options.hasProgramMenu) {
-        graph_menu_init('programMenu', options.subDir + 'graph', options.fileExt, options.loadProc);
-        load_utf8_and_then('html/' + options.subDir + 'program-menu.html', setter_for_inner_html_of('programMenu'));
-    }
-    if (options.hasHelpMenu) {
-        graph_menu_init('helpMenu', options.subDir + 'ugen', options.fileExt, options.loadProc);
-        load_utf8_and_then('html/' + options.subDir + 'help-menu.html', setter_for_inner_html_of('helpMenu'));
-    }
-    if (options.hasGuideMenu) {
-        graph_menu_init('guideMenu', options.subDir + 'guide', options.fileExt, options.loadProc);
-        load_utf8_and_then('html/' + options.subDir + 'guide-menu.html', setter_for_inner_html_of('guideMenu'));
-    }
-    if (options.hasEssayMenu) {
-        graph_menu_init('essayMenu', options.subDir + 'essay', options.fileExt, options.loadProc);
-        load_utf8_and_then('html/' + options.subDir + 'essay-menu.html', setter_for_inner_html_of('essayMenu'));
-    }
-    if (options.hasUserMenu) {
-        user.storage_key = options.storageKey;
-        user_program_menu_init(editor.set_data);
-    }
-    notation.format = '.stc';
-    if (options.initWasm && scsynth) {
-        if (options.hasActionsMenu) {
-            actions_menu_init(scsynth.options, editor.get_selected_text, editor.set_data);
-        }
-        sc3_mouse_init(scsynth);
-        scsynth.options.hardwareBufferSize = options.hardwareBufferSize;
-        scsynth.options.blockSize = options.blockSize;
-    }
-}
-function jssc3_init(fileNameParamKey, defaultFileName, codeParamKey) {
-    const fileName = url_get_param(fileNameParamKey) || defaultFileName;
-    const code = codeParamKey ? url_get_param(codeParamKey) : null;
-    connect_button_to_input('programInputFileSelect', 'programInputFile');
-    consoleDebug(`jssc3_init: ${fileName}, ${code}`);
-    if (fileName) {
-        load_utf8_and_then(fileName, editor.set_data);
-    }
-    if (code) {
-        editor.set_data(code);
-    }
-}
-export { defaultUiInitOptions as defaultUiInitOptions };
-export { sc3_ui_init as sc3_ui_init };
-export { jssc3_init as jssc3_init };
-let sc3_plaintext;
-function sc3_plaintext_init_in(parentId) {
-    const parentElement = document.getElementById(parentId);
-    if (parentElement) {
-        sc3_plaintext = document.createElement('textarea');
-        sc3_plaintext.setAttribute('id', 'programText');
-        sc3_plaintext.setAttribute('spellcheck', 'false');
-        parentElement.appendChild(sc3_plaintext);
-    } else {
-        console.error('sc3_plaintext_init_in');
-    }
-    editor.get_selected_text = sc3_plaintext_get_selected_text;
-    editor.get_data = sc3_plaintext_get_complete_text;
-    editor.set_data = sc3_plaintext_set_text;
-}
-function sc3_plaintext_get_complete_text() {
-    return sc3_plaintext ? sc3_plaintext.value : '';
-}
-function sc3_plaintext_get_selected_text() {
-    const currentText = textarea_get_selection_or_contents(sc3_plaintext).trim();
-    if (currentText.length === 0) {
-        console.warn('sc3_plaintext_get_selected_text: empty text');
-    }
-    return currentText;
-}
-function sc3_plaintext_set_text(programText) {
-    sc3_plaintext.value = programText;
-}
-export { sc3_plaintext_init_in as sc3_plaintext_init_in };
