@@ -388,6 +388,9 @@ function connect_button_to_input(buttonId, inputId) {
         button.addEventListener('click', (_unusedEvent)=>input.click(), false);
     }
 }
+function click_input(inputId) {
+    withElement(inputId, (inputElement)=>inputElement.click());
+}
 function textarea_get_selection_or_contents(textareaElement) {
     if (textareaElement.selectionStart === textareaElement.selectionEnd) {
         return textareaElement.value;
@@ -440,6 +443,7 @@ export { select_add_option_at_id as select_add_option_at_id };
 export { select_clear_from as select_clear_from };
 export { select_add_keys_as_options as select_add_keys_as_options };
 export { connect_button_to_input as connect_button_to_input };
+export { click_input as click_input };
 export { textarea_get_selection_or_contents as textarea_get_selection_or_contents };
 export { url_get_param as url_get_param };
 export { window_url_set_param as window_url_set_param };
@@ -645,8 +649,79 @@ function local_storage_keys() {
 function local_storage_delete_matching(predicate) {
     local_storage_keys().forEach((entry)=>predicate(entry) ? localStorage.removeItem(entry) : null);
 }
+const userPrograms = {
+    programs: {},
+    storage_key: ''
+};
+function user_program_menu_init(selectId, set_program) {
+    const stored = localStorage.getItem(userPrograms.storage_key);
+    userPrograms.programs = stored ? JSON.parse(stored) : {};
+    select_on_change(selectId, (_menuElement, programName)=>set_program(userPrograms.programs[programName]));
+    select_add_keys_as_options(selectId, Object.keys(userPrograms.programs));
+}
+function user_program_save_to(selectId, program_text, with_prompt) {
+    const timeStamp = new Date().toISOString();
+    const programName = with_prompt ? window.prompt('Set program name', timeStamp) : timeStamp;
+    if (programName) {
+        userPrograms.programs[programName] = program_text;
+        localStorage.setItem(userPrograms.storage_key, JSON.stringify(userPrograms.programs));
+        select_add_option_at_id(selectId, programName, programName);
+    }
+}
+function user_program_clear(selectId) {
+    if (window.confirm("Clear user program storage?")) {
+        select_clear_from(selectId, 1);
+        localStorage.removeItem(userPrograms.storage_key);
+    }
+}
+function user_storage_sync(selectId) {
+    localStorage.setItem(userPrograms.storage_key, JSON.stringify(userPrograms.programs));
+    select_clear_from(selectId, 1);
+    select_add_keys_as_options(selectId, Object.keys(userPrograms.programs));
+}
+function user_program_read_archive(inputId, selectId) {
+    const fileInput = document.getElementById(inputId);
+    const fileList = fileInput.files;
+    const jsonFile = fileList[0];
+    if (fileInput && fileList && jsonFile) {
+        consoleDebug(`user_program_read_archive: ${jsonFile}`);
+        read_json_file_and_then(jsonFile, function(obj) {
+            consoleDebug(`user_program_read_archive: ${obj}`);
+            Object.assign(userPrograms.programs, obj);
+            user_storage_sync(selectId);
+        });
+    } else {
+        console.error('user_program_read_archive');
+    }
+}
+function user_backup() {
+    navigator.clipboard.writeText(JSON.stringify(userPrograms.programs));
+}
+function user_action_do(actionName, selectId, inputId) {
+    switch(actionName){
+        case 'userBackup':
+            user_backup();
+            return true;
+        case 'userClear':
+            user_program_clear(selectId);
+            return true;
+        case 'userRestore':
+            click_input(inputId);
+            return true;
+        default:
+            return false;
+    }
+}
 export { local_storage_keys as local_storage_keys };
 export { local_storage_delete_matching as local_storage_delete_matching };
+export { userPrograms as userPrograms };
+export { user_program_menu_init as user_program_menu_init };
+export { user_program_save_to as user_program_save_to };
+export { user_program_clear as user_program_clear };
+export { user_storage_sync as user_storage_sync };
+export { user_program_read_archive as user_program_read_archive };
+export { user_backup as user_backup };
+export { user_action_do as user_action_do };
 function isNull(aValue) {
     return aValue === null;
 }
@@ -1260,6 +1335,12 @@ function isUgenByName(aValue) {
 function isUgenInput(aValue) {
     return isNumber(aValue) || isUgen(aValue);
 }
+function isSignal(aValue) {
+    return isUgenInput(aValue) || isArray(aValue) && arrayEvery(aValue, isSignal);
+}
+function isOutputSignal(aValue) {
+    return isUgen(aValue) || isArray(aValue) && arrayEvery(aValue, isUgen);
+}
 function inputBranch(input, onUgen, onNumber, onError) {
     if (isUgen(input)) {
         return onUgen(input);
@@ -1465,6 +1546,8 @@ export { Ugen as Ugen };
 export { isUgen as isUgen };
 export { isUgenByName as isUgenByName };
 export { isUgenInput as isUgenInput };
+export { isSignal as isSignal };
+export { isOutputSignal as isOutputSignal };
 export { inputBranch as inputBranch };
 export { inputRate as inputRate };
 export { deriveRate as deriveRate };
@@ -4339,7 +4422,16 @@ export { EnvRelease as EnvRelease };
 export { EnvSine as EnvSine };
 export { EnvPerc as EnvPerc };
 function wrapOut(bus, ugen) {
-    return isOutUgen(ugen) ? ugen : Out(bus, ugen);
+    if (isOutUgen(ugen)) {
+        return ugen;
+    } else {
+        if (isOutputSignal(ugen)) {
+            return Out(bus, ugen);
+        } else {
+            throwError('wrapOut: not output signal');
+            return Out(bus, Dc(0));
+        }
+    }
 }
 function Adsr(gate, attackTime, decayTime, sustainLevel, releaseTime, curve) {
     const env = EnvAdsr(attackTime, decayTime, sustainLevel, releaseTime, 1, curve);
