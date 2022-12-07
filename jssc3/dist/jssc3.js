@@ -5638,6 +5638,9 @@ function exp(aNumber) {
 function floor(aNumber) {
     return Floor(aNumber);
 }
+function log(aNumber) {
+    return Log(aNumber);
+}
 function negated(aNumber) {
     return Neg(aNumber);
 }
@@ -5721,6 +5724,7 @@ export { ceiling as ceiling };
 export { cubed as cubed };
 export { exp as exp };
 export { floor as floor };
+export { log as log };
 export { negated as negated };
 export { reciprocal as reciprocal };
 export { rounded as rounded };
