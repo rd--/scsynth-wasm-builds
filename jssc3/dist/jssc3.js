@@ -4316,12 +4316,9 @@ class Env {
     loopNode;
     offset;
     constructor(levels, times, curves, releaseNode, loopNode, offset){
-        if (treeDepthFrom(levels, 0) > 1 || treeDepthFrom(times, 0) > 1 || treeDepthFrom(curves, 0) > 1) {
-            throwError('Env: nested inputs?');
-        }
-        this.levels = treeFlatten(levels);
-        this.times = treeFlatten(times);
-        this.curves = treeFlatten(curves);
+        this.levels = levels;
+        this.times = times;
+        this.curves = asArray(curves);
         this.releaseNode = fromMaybe(releaseNode, -99);
         this.loopNode = fromMaybe(loopNode, -99);
         this.offset = offset;
@@ -4412,6 +4409,18 @@ function EnvPerc(attackTime, releaseTime, level, curve) {
         releaseTime
     ], curve, null, null, 0);
 }
+function EnvLinen(attackTime, sustainTime, releaseTime, level, curve) {
+    return new Env([
+        0,
+        level,
+        level,
+        0
+    ], [
+        attackTime,
+        sustainTime,
+        releaseTime
+    ], curve, null, null, 0);
+}
 export { envCurveDictionary as envCurveDictionary };
 export { Env as Env };
 export { envCoord as envCoord };
@@ -4421,6 +4430,7 @@ export { EnvCutoff as EnvCutoff };
 export { EnvRelease as EnvRelease };
 export { EnvSine as EnvSine };
 export { EnvPerc as EnvPerc };
+export { EnvLinen as EnvLinen };
 function wrapOut(bus, ugen) {
     if (isOutUgen(ugen)) {
         return ugen;
@@ -5785,10 +5795,12 @@ function stc_binary_selector_from_operator(text) {
             return 'ShiftRight';
         case '**':
             return 'Pow';
+        case '->':
+            return 'Association';
         case 'midiCps':
             return 'MidiCps';
         default:
-            consoleDebug(`stc_binary_selector_from_operator: ${text}`);
+            console.warn(`stc_binary_selector_from_operator: ${text}`);
             return text;
     }
 }
