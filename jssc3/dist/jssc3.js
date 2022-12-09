@@ -570,38 +570,19 @@ function url_append_timestamp(url) {
     const ext = (/\?/.test(url) ? '&' : '?') + new Date().getTime();
     return url + ext;
 }
-function fetch_url(url, responseType) {
-    consoleDebug(`fetch_url: ${url}`);
-    return new Promise(function(resolve, reject) {
-        const request = new XMLHttpRequest();
-        request.open('GET', url);
-        request.onload = function() {
-            if (request.status >= 200 && request.status < 300) {
-                resolve(request.response);
-            } else {
-                reject(request.statusText);
-            }
-        };
-        request.onerror = function() {
-            reject(request.statusText);
-        };
-        request.responseType = responseType;
-        request.send();
-    });
-}
-function fetch_url_and_then(url, responseType, proc) {
-    fetch_url(url, responseType).then((answer)=>proc(answer)).catch((reason)=>console.error(`fetch_url_and_then: ${url}: ${reason}`));
-}
-function handle_fetch_error(response) {
-    if (!response.ok) {
-        throw Error(response.statusText);
-    }
-    return response;
+function fetch_extract_then_else(url, extractFunc, processFunc, errorFunc) {
+    fetch(url, {
+        cache: 'no-cache'
+    }).then(function(response) {
+        if (response.ok) {
+            return extractFunc(response);
+        } else {
+            return Promise.reject(response.statusText);
+        }
+    }).then(processFunc).catch(errorFunc);
 }
 function load_and_extract_and_then(fileName, typeString, extractFunc, processFunc) {
-    fetch(fileName, {
-        cache: 'no-cache'
-    }).then((response)=>handle_fetch_error(response)).then((response)=>extractFunc(response)).then((text)=>processFunc(text)).catch((reason)=>console.error(`load_and_extract_and_then: ${typeString}: ${reason}`));
+    fetch_extract_then_else(fileName, extractFunc, processFunc, (reason)=>console.error(`load_and_extract_and_then: ${typeString}: ${reason}`));
 }
 function load_utf8_and_then(fileName, processFunc) {
     load_and_extract_and_then(fileName, 'text/utf8', (r)=>r.text(), processFunc);
@@ -650,12 +631,16 @@ function read_json_file_and_then(jsonFile, proc) {
 function load_utf8(url) {
     return fetch(url, {
         cache: 'no-cache'
-    }).then((response)=>handle_fetch_error(response)).then((response)=>response.text()).catch((reason)=>`load_utf8: ${url}: ${reason}`);
+    }).then(handle_fetch_error).then((response)=>response.text()).catch((reason)=>`load_utf8: ${url}: ${reason}`);
+}
+function handle_fetch_error(response) {
+    if (!response.ok) {
+        throw Error(response.statusText);
+    }
+    return response;
 }
 export { url_append_timestamp as url_append_timestamp };
-export { fetch_url as fetch_url };
-export { fetch_url_and_then as fetch_url_and_then };
-export { handle_fetch_error as handle_fetch_error };
+export { fetch_extract_then_else as fetch_extract_then_else };
 export { load_and_extract_and_then as load_and_extract_and_then };
 export { load_utf8_and_then as load_utf8_and_then };
 export { load_json_and_then as load_json_and_then };
@@ -666,6 +651,7 @@ export { read_text_file_from_file_input_and_then as read_text_file_from_file_inp
 export { read_text_file_from_file_input_and_set_element_text as read_text_file_from_file_input_and_set_element_text };
 export { read_json_file_and_then as read_json_file_and_then };
 export { load_utf8 as load_utf8 };
+export { handle_fetch_error as handle_fetch_error };
 function local_storage_keys() {
     const arrayLength = localStorage.length;
     const answer = Array(arrayLength);
@@ -5837,13 +5823,13 @@ function stc_binary_selector_from_operator(text) {
             return text;
     }
 }
-function stc_to_js_and_then(stcText, proc) {
+function stc_to_js_and_then(stcText, procFunc) {
     if (stcText.trim() === '') {
-        proc('');
+        procFunc('');
     } else {
         const urlPrefix = 'cgi-bin/stsc3-cgi.py?cmd=stc-to-js&stc=';
         const encodedStcText = encodeURIComponent(stcText);
-        fetch_url_and_then(urlPrefix + encodedStcText, 'text', proc);
+        load_utf8_and_then(urlPrefix + encodedStcText, procFunc);
     }
 }
 export { stc_is_binary_selector as stc_is_binary_selector };

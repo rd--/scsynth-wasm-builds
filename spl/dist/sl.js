@@ -11,16 +11,16 @@ function throwError(text) {
     console.error(text);
     throw Error(text);
 }
+function load_utf8(url) {
+    return fetch(url, {
+        cache: 'no-cache'
+    }).then(handle_fetch_error).then((response)=>response.text()).catch((reason)=>`load_utf8: ${url}: ${reason}`);
+}
 function handle_fetch_error(response) {
     if (!response.ok) {
         throw Error(response.statusText);
     }
     return response;
-}
-function load_utf8(url) {
-    return fetch(url, {
-        cache: 'no-cache'
-    }).then((response)=>handle_fetch_error(response)).then((response)=>response.text()).catch((reason)=>`load_utf8: ${url}: ${reason}`);
 }
 var main$1 = {
     exports: {}
