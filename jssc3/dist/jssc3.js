@@ -430,6 +430,37 @@ function prompt_for_int_and_then(promptText, defaultValue, proc) {
         parse_int_or_alert_and_then(integerText, 'Not an integer?', proc);
     }
 }
+function fullscreenFor(element) {
+    const fullscreenOptions = {
+        navigationUI: "hide"
+    };
+    if (!document.fullscreenElement) {
+        element.requestFullscreen(fullscreenOptions);
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+function fullscreen() {
+    fullscreenFor(document.documentElement);
+}
+function menu_on_change_with_option_value(menuId, changeProc) {
+    const menu = document.getElementById(menuId);
+    if (menu) {
+        menu.addEventListener('change', function(anEvent) {
+            const target = anEvent.target;
+            if (target) {
+                const optionElement = target;
+                changeProc(optionElement.value);
+            } else {
+                console.warn(`menu_on_change_with_target_value: no target or no target.value: ${menuId}`);
+            }
+        });
+    } else {
+        console.warn(`menu_on_change_with_target_value: no element: ${menuId}`);
+    }
+}
 export { get_selected_text as get_selected_text };
 export { get_selected_text_or_contents_of as get_selected_text_or_contents_of };
 export { setInnerHtml as setInnerHtml };
@@ -450,6 +481,8 @@ export { window_url_set_param as window_url_set_param };
 export { parse_int_or_alert as parse_int_or_alert };
 export { parse_int_or_alert_and_then as parse_int_or_alert_and_then };
 export { prompt_for_int_and_then as prompt_for_int_and_then };
+export { fullscreen as fullscreen };
+export { menu_on_change_with_option_value as menu_on_change_with_option_value };
 function encodeUsing(byteCount, writerFunction) {
     const arrayBuffer = new ArrayBuffer(byteCount);
     writerFunction(new DataView(arrayBuffer));
