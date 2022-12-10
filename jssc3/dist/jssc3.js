@@ -573,13 +573,7 @@ function url_append_timestamp(url) {
 function fetch_extract_then_else(url, extractFunc, processFunc, errorFunc) {
     fetch(url, {
         cache: 'no-cache'
-    }).then(function(response) {
-        if (response.ok) {
-            return extractFunc(response);
-        } else {
-            return Promise.reject(response.statusText);
-        }
-    }).then(processFunc).catch(errorFunc);
+    }).then(handle_fetch_error).then(extractFunc).then(processFunc).catch(errorFunc);
 }
 function load_and_extract_and_then(fileName, typeString, extractFunc, processFunc) {
     fetch_extract_then_else(fileName, extractFunc, processFunc, (reason)=>console.error(`load_and_extract_and_then: ${typeString}: ${reason}`));
