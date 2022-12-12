@@ -306,18 +306,24 @@ function get_selected_text_or_contents_of(elemId) {
         return element ? element.innerText.trim() : '';
     }
 }
-function setInnerHtml(elementId, innerHtml) {
+function setInnerHtml(elementId, innerHtml, setFocus) {
     const element = document.getElementById(elementId);
     if (element) {
         element.innerHTML = innerHtml;
+        if (setFocus) {
+            element.focus();
+        }
     } else {
         console.warn(`setInnerHtml: ${elementId}: element not located`);
     }
 }
-function setTextContent(elementId, textContent) {
+function setTextContent(elementId, textContent, setFocus) {
     const element = document.getElementById(elementId);
     if (element) {
         element.textContent = textContent;
+        if (setFocus) {
+            element.focus();
+        }
     } else {
         console.warn(`setTextContent: ${elementId}: element not located`);
     }
@@ -842,6 +848,9 @@ function stringIsPrefixOf(aPrefix, aString) {
 function stringLines(aString) {
     return aString.split('\n');
 }
+function stringNonEmptyLines(aString) {
+    return aString.split('\n').filter((each)=>each.length > 0);
+}
 function stringSplitOn(aString, aDelimiter) {
     return aString.split(aDelimiter);
 }
@@ -867,6 +876,7 @@ function stringIsEmpty(aString) {
 export { isString as isString };
 export { stringIsPrefixOf as stringIsPrefixOf };
 export { stringLines as stringLines };
+export { stringNonEmptyLines as stringNonEmptyLines };
 export { stringSplitOn as stringSplitOn };
 export { stringUnlines as stringUnlines };
 export { stringAppend as stringAppend };
@@ -4686,6 +4696,14 @@ function DynRingzBank(input, freq, amp, time) {
 function Changed(input, threshold) {
     return Gt(Abs(Hpz1(input)), threshold);
 }
+function BLowPass4(input, freq, rq) {
+    var sqrtRq = Sqrt(rq);
+    return BLowPass(BLowPass(input, freq, sqrtRq), freq, sqrtRq);
+}
+function BHiPass4(input, freq, rq) {
+    var sqrtRq = Sqrt(rq);
+    return BHiPass(BHiPass(input, freq, sqrtRq), freq, sqrtRq);
+}
 export { wrapOut as wrapOut };
 export { Adsr as Adsr };
 export { Asr as Asr };
@@ -4739,6 +4757,8 @@ export { Sine as Sine };
 export { Perc as Perc };
 export { DynRingzBank as DynRingzBank };
 export { Changed as Changed };
+export { BLowPass4 as BLowPass4 };
+export { BHiPass4 as BHiPass4 };
 function PointerW(n) {
     return ControlIn(1, 15001 + n * 10);
 }

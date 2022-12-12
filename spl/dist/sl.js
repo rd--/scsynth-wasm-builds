@@ -9226,6 +9226,9 @@ function addMethod(typeName, name, arity, method, source) {
         Object.defineProperty(globalFunction, "name", {
             value: name
         });
+        Object.defineProperty(globalFunction, "hasRestParameters", {
+            value: true
+        });
     }
     if (!genericProcedure.has(arity)) {
         genericProcedure.set(arity, new Map());
