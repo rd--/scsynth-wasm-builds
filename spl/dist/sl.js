@@ -8587,8 +8587,8 @@ Sl {
     BinaryExpression = Expression (binaryOperator Primary)+
 
     Primary
-      = PutSyntax
-      | PutQuotedSyntax
+      = AtPutSyntax
+      | AtPutQuotedSyntax
       | AtSyntax
       | AtQuotedSyntax
       | ValueSyntax
@@ -8596,7 +8596,7 @@ Sl {
       | DotExpressionWithTrailingDictionariesSyntax
       | DotExpressionWithAssignmentSyntax
       | DotExpression
-      | ImplicitDictionaryPutSyntax
+      | ImplicitDictionaryAtPutSyntax
       | ImplicitDictionaryAtSyntax
       | Block
       | ApplyWithTrailingDictionariesSyntax
@@ -8613,8 +8613,8 @@ Sl {
       | IntervalSyntax
       | IntervalThenSyntax
 
-    PutSyntax = Primary "[" Expression "]" ":=" Expression
-    PutQuotedSyntax = Primary "::" identifier ":=" Expression
+    AtPutSyntax = Primary "[" Expression "]" ":=" Expression
+    AtPutQuotedSyntax = Primary "::" identifier ":=" Expression
     AtSyntax = Primary "[" Expression "]"
     AtQuotedSyntax = Primary "::" identifier
     ValueSyntax = Primary "." NonEmptyParameterList
@@ -8625,7 +8625,7 @@ Sl {
     DotExpressionWithAssignmentSyntax = Primary "." identifier ":=" Expression
     DotExpression = Primary ("." identifier ~("{" | ":=") NonEmptyParameterList?)+
 
-    ImplicitDictionaryPutSyntax = "::" identifier ":=" Expression
+    ImplicitDictionaryAtPutSyntax = "::" identifier ":=" Expression
     ImplicitDictionaryAtSyntax = "::" identifier
 
     Block = "{" BlockBody "}"
@@ -8761,11 +8761,11 @@ const asJs = {
         }
         return left;
     },
-    PutSyntax (c, _l, k, _r, _e, v) {
-        return `_put(${c.asJs}, ${k.asJs}, ${v.asJs})`;
+    AtPutSyntax (c, _l, k, _r, _e, v) {
+        return `_atPut(${c.asJs}, ${k.asJs}, ${v.asJs})`;
     },
-    PutQuotedSyntax (c, _c, k, _e, v) {
-        return `_put(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
+    AtPutQuotedSyntax (c, _c, k, _e, v) {
+        return `_atPut(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
     },
     AtSyntax (c, _l, k, _r) {
         return `_at(${c.asJs}, ${k.asJs})`;
@@ -8811,8 +8811,8 @@ const asJs = {
         }
         return rcv;
     },
-    ImplicitDictionaryPutSyntax (_c, k, _a, e) {
-        return `_put(_implicitDictionary, '${k.sourceString}', ${e.asJs})`;
+    ImplicitDictionaryAtPutSyntax (_c, k, _a, e) {
+        return `_atPut(_implicitDictionary, '${k.sourceString}', ${e.asJs})`;
     },
     ImplicitDictionaryAtSyntax (_c, k) {
         return `_at(_implicitDictionary, '${k.sourceString}')`;
@@ -9048,7 +9048,7 @@ class PriorityQueue {
 function stringCapitalizeFirstLetter(aString) {
     return aString.charAt(0).toUpperCase() + aString.slice(1);
 }
-const operatorNameCharacters = '+*-/&|@<>=%!\\~?^#$';
+const operatorNameCharacters = '+*-/&|@<>=%!\\~?^#$:';
 function isOperatorName(name) {
     return operatorNameCharacters.includes(name.charAt(0));
 }
@@ -9070,8 +9070,19 @@ const operatorNameTable = {
     '?': 'query',
     '^': 'hat',
     '#': 'hash',
-    '$': 'dollar'
+    '$': 'dollar',
+    ':': 'colon'
 };
+function operatorMethodName(operator) {
+    const words = [
+        ...operator
+    ].map((letter)=>operatorNameTable[letter]);
+    return words.slice(0, 1).concat(words.slice(1).map(stringCapitalizeFirstLetter)).join('');
+}
+export { operatorNameCharacters as operatorNameCharacters };
+export { isOperatorName as isOperatorName };
+export { operatorNameTable as operatorNameTable };
+export { operatorMethodName as operatorMethodName };
 export { PriorityQueue as PriorityQueue };
 function isStringDictionary(anObject) {
     const c = anObject.constructor;
@@ -9256,12 +9267,6 @@ function addType(typeName, slotNames) {
 function shiftRight(lhs, rhs) {
     return lhs >> rhs;
 }
-function operatorMethodName(operator) {
-    const words = [
-        ...operator
-    ].map((letter)=>operatorNameTable[letter]);
-    return words.slice(0, 1).concat(words.slice(1).map(stringCapitalizeFirstLetter)).join('');
-}
 function methodName(name) {
     return isOperatorName(name) ? operatorMethodName(name) : name;
 }
@@ -9314,7 +9319,6 @@ export { dispatch as dispatch };
 export { addMethod as addMethod };
 export { addType as addType };
 export { shiftRight as shiftRight };
-export { operatorMethodName as operatorMethodName };
 export { methodName as methodName };
 export { arrayCheckIndex as arrayCheckIndex };
 export { assignGlobals as assignGlobals };

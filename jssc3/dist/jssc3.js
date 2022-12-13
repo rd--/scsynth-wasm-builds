@@ -1308,10 +1308,23 @@ function unaryOperatorName(specialIndex) {
 function binaryOperatorName(specialIndex) {
     return Object.keys(binaryOperators).find((key)=>binaryOperators[key] === specialIndex) || 'unknown binary operator name?';
 }
+const operatorNameTable = {
+    '+': 'Add',
+    '-': 'Sub',
+    '*': 'Mul',
+    '/': 'Fdiv',
+    '%': 'Mod',
+    '=': 'Eq',
+    '<': 'Lt',
+    '>': 'Gt',
+    '&': 'BitAnd',
+    '|': 'BitOr'
+};
 export { unaryOperators as unaryOperators };
 export { binaryOperators as binaryOperators };
 export { unaryOperatorName as unaryOperatorName };
 export { binaryOperatorName as binaryOperatorName };
+export { operatorNameTable as operatorNameTable };
 const ugenCounter = counterNew();
 class ScUgen {
     name;
