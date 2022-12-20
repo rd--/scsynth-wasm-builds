@@ -2,15 +2,6 @@
 // deno-lint-ignore-file
 // This code was bundled using `deno bundle` and it's not recommended to edit it manually
 
-function consoleDebug(text) {
-    if (false) {
-        console.debug(text);
-    }
-}
-function throwError(text) {
-    console.error(text);
-    throw Error(text);
-}
 function load_utf8(url) {
     return fetch(url, {
         cache: 'no-cache'
@@ -21,6 +12,9 @@ function handle_fetch_error(response) {
         throw Error(response.statusText);
     }
     return response;
+}
+function arraySum(anArray) {
+    return anArray.reduce((lhs, rhs)=>lhs + rhs, 0);
 }
 var main$1 = {
     exports: {}
@@ -8564,8 +8558,9 @@ Sl {
 
     TopLevel = LibraryExpression+ | Program
     LibraryExpression = ClassExpression | TraitExpression
-    ClassExpression = ClassExtension | ClassDefinition
+    ClassExpression = ClassExtension | ClassListExtension | ClassDefinition
     ClassExtension = "+" identifier "{" (methodName Block)* "}"
+    ClassListExtension = "+" "[" NonemptyListOf<identifier, ","> "]" "{" (methodName Block)* "}"
     ClassDefinition = identifier TraitList? "{" Temporaries? (methodName Block)* "}"
     TraitList = ":" "[" NonemptyListOf<identifier, ","> "]"
     TraitExpression = TraitExtension | TraitDefinition
@@ -8574,8 +8569,13 @@ Sl {
     Program = Temporaries? ExpressionSequence
     Temporaries = TemporariesWithInitializers | TemporariesWithoutInitializers | TemporariesVarSyntax+
     TemporariesWithInitializers = "|" NonemptyListOf<TemporaryWithInitializer, ","> ";" "|"
-    TemporaryWithInitializer = TemporaryWithIdentifierInitializer | TemporaryWithDictionaryInitializer | TemporaryWithArrayInitializer
-    TemporaryWithIdentifierInitializer = identifier "=" Expression
+    TemporaryWithInitializer =
+      TemporaryWithBlockLiteralInitializer |
+      TemporaryWithExpressionInitializer |
+      TemporaryWithDictionaryInitializer |
+      TemporaryWithArrayInitializer
+    TemporaryWithBlockLiteralInitializer = identifier "=" Block ~("." | binaryOperator)
+    TemporaryWithExpressionInitializer = identifier "=" Expression
     TemporaryWithDictionaryInitializer = "("  NonemptyListOf<identifier, ","> ")" "=" Expression
     TemporaryWithArrayInitializer = "["  NonemptyListOf<identifier, ","> "]" "=" Expression
     TemporariesWithoutInitializers = "|" identifier+ "|"
@@ -8617,7 +8617,7 @@ Sl {
     AtPutQuotedSyntax = Primary "::" identifier ":=" Expression
     AtSyntax = Primary "[" Expression "]"
     AtQuotedSyntax = Primary "::" identifier
-    ValueSyntax = Primary "." NonEmptyParameterList
+    ValueSyntax = Primary "." ParameterList
     NonEmptyParameterList =  "(" NonemptyListOf<Expression, ","> ")"
 
     DotExpressionWithTrailingClosuresSyntax = Primary "." identifier NonEmptyParameterList? Block+
@@ -8652,8 +8652,8 @@ Sl {
     IntervalThenSyntax = "(" Expression "," Expression ".." Expression ")"
 
     methodName = identifier | binaryOperator
-    identifier = letter letterOrDigitOrUnderscore*
-    letterOrDigitOrUnderscore = letter | digit | "_"
+    identifier = letter letterOrDigit* (":/" digit+)?
+    letterOrDigit = letter | digit
     reservedIdentifier = "nil" | "true" | "false"
     binaryOperator = binaryChar+
     binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$"
@@ -8688,13 +8688,15 @@ function slParseToAst(str) {
 function slTemporariesSyntaxNames(str) {
     return slParseToAst(str)[0];
 }
-function slBlockArity(str) {
-    const arg = slParseToAst(str)[1][0][0];
-    return arg === null ? 0 : arg.length;
-}
 const asJs = {
     ClassExtension (_e, clsNm, _l, mthNm, mthBlk, _r) {
-        return makeMethodList('addMethod', clsNm.sourceString, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+        return makeMethodList('addMethod', [
+            clsNm.sourceString
+        ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+    },
+    ClassListExtension (_e, _cl, clsNmList, _cr, _ml, mthNm, mthBlk, _mr) {
+        const clsNmArray = clsNmList.asIteration().children.map((c)=>c.sourceString);
+        return makeMethodList('addMethod', clsNmArray, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
     ClassDefinition (clsNm, trt, _l, tmp, mthNm, mthBlk, _r) {
         function makeClassDefinition(clsNm, trt, tmp, mthNms, mthBlks) {
@@ -8703,7 +8705,9 @@ const asJs = {
             const typ = `sl.addType('${clsNm}', [${tmpNm}]);`;
             const addTraits = `sl.addTypeTraits('${clsNm}', [${trt}]);`;
             const cpyTraits = trt.split(', ').filter((each)=>each.length > 0).map((trtNm)=>`sl.copyTraitToType(${trtNm}, '${clsNm}');`).join(' ');
-            const mth = makeMethodList('addMethod', clsNm, mthNms, mthBlks);
+            const mth = makeMethodList('addMethod', [
+                clsNm
+            ], mthNms, mthBlks);
             return `${typ}${addTraits}${cpyTraits}${mth}`;
         }
         return makeClassDefinition(clsNm.sourceString, trt.asJs, tmp, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
@@ -8712,12 +8716,15 @@ const asJs = {
         return nm.asIteration().children.map((c)=>`'${c.sourceString}'`).join(', ');
     },
     TraitExtension (_p, _t, trtNm, _l, mthNm, mthBlk, _r) {
-        consoleDebug(`TraitExtension: ${trtNm.sourceString}`);
-        return makeMethodList('extendTraitWithMethod', trtNm.sourceString, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+        return makeMethodList('extendTraitWithMethod', [
+            trtNm.sourceString
+        ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
     TraitDefinition (_t, trtNm, _l, mthNm, mthBlk, _r) {
         const trt = `sl.addTrait('${trtNm.sourceString}');`;
-        const mth = makeMethodList('addTraitMethod', trtNm.sourceString, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+        const mth = makeMethodList('addTraitMethod', [
+            trtNm.sourceString
+        ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
         return `${trt}${mth}`;
     },
     Program (tmp, stm) {
@@ -8726,19 +8733,23 @@ const asJs = {
     TemporariesWithInitializers (_l, tmp, _s, _r) {
         return 'var ' + commaList(tmp.asIteration().children) + ';';
     },
-    TemporaryWithIdentifierInitializer (nm, _, exp) {
+    TemporaryWithBlockLiteralInitializer (nm, _, blk) {
+        var name = nm.asJs;
+        return `${name} = ${blk.asJs}, ${name}_${blk.arityOf} = ${name}`;
+    },
+    TemporaryWithExpressionInitializer (nm, _, exp) {
         return nm.asJs + ' = ' + exp.asJs;
     },
     TemporaryWithDictionaryInitializer (_l, lhs, _r, _e, rhs) {
         const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
         const rhsName = gensym();
-        const slots = namesArray.map((name)=>`_${name} = _at(${rhsName}, '${name}')`).join(', ');
+        const slots = namesArray.map((name)=>`_${name} = _at_2(${rhsName}, '${name}')`).join(', ');
         return `${rhsName} = ${rhs.asJs}, ${slots}`;
     },
     TemporaryWithArrayInitializer (_l, lhs, _r, _e, rhs) {
         const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
         const rhsName = gensym();
-        const slots = namesArray.map((name, index)=>`_${name} = _at(${rhsName}, ${index + 1})`).join(', ');
+        const slots = namesArray.map((name, index)=>`_${name} = _at_2(${rhsName}, ${index + 1})`).join(', ');
         return `${rhsName} = ${rhs.asJs}, ${slots}`;
     },
     TemporariesWithoutInitializers (_l, tmp, _r) {
@@ -8757,21 +8768,21 @@ const asJs = {
         while(opsArray.length > 0){
             const op = opsArray.shift();
             const right = rhsArray.shift();
-            left = `_${sl.operatorMethodName(op)}(${left}, ${right})`;
+            left = `_${sl.operatorMethodName(op)}_2(${left}, ${right})`;
         }
         return left;
     },
     AtPutSyntax (c, _l, k, _r, _e, v) {
-        return `_atPut(${c.asJs}, ${k.asJs}, ${v.asJs})`;
+        return `_atPut_3(${c.asJs}, ${k.asJs}, ${v.asJs})`;
     },
     AtPutQuotedSyntax (c, _c, k, _e, v) {
-        return `_atPut(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
+        return `_atPut_3(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
     },
     AtSyntax (c, _l, k, _r) {
-        return `_at(${c.asJs}, ${k.asJs})`;
+        return `_at_2(${c.asJs}, ${k.asJs})`;
     },
     AtQuotedSyntax (c, _c, k) {
-        return `_at(${c.asJs}, '${k.sourceString}')`;
+        return `_at_2(${c.asJs}, '${k.sourceString}')`;
     },
     ValueSyntax (p, _d, a) {
         return `${p.asJs}(${a.asJs})`;
@@ -8780,29 +8791,31 @@ const asJs = {
         return commaList(sq.asIteration().children);
     },
     DotExpressionWithTrailingClosuresSyntax (lhs, _dot, nm, args, tc) {
-        return `${nm.asJs}(${[
+        return `${nm.asJs}_${1 + args.arityOf + tc.children.length}(${[
             lhs.asJs
         ].concat(args.children.map((c)=>c.asJs), tc.children.map((c)=>c.asJs))})`;
     },
     DotExpressionWithTrailingDictionariesSyntax (lhs, _dot, nm, args, tc) {
-        return `${nm.asJs}(${[
+        return `${nm.asJs}_${1 + args.arityOf + tc.children.length}(${[
             lhs.asJs
         ].concat(args.children.map((c)=>c.asJs), tc.children.map((c)=>c.asJs))})`;
     },
     DotExpressionWithAssignmentSyntax (lhs, _dot, nm, _asg, rhs) {
-        return `${nm.asJs}(${lhs.asJs}, ${rhs.asJs})`;
+        return `${nm.asJs}_2(${lhs.asJs}, ${rhs.asJs})`;
     },
     DotExpression (lhs, _dot, nms, args) {
         let rcv = lhs.asJs;
         const namesArray = nms.children.map((c)=>c.asJs);
         const argsArray = args.children.map((c)=>c.asJs);
+        const arityArray = args.children.map((c)=>c.arityOf);
         while(namesArray.length > 0){
             const nm = namesArray.shift();
             const arg = argsArray.shift();
+            const arity = arityArray.shift();
             if (arg.length === 0) {
-                rcv = `${nm}(${rcv})`;
+                rcv = `${nm}_1(${rcv})`;
             } else {
-                rcv = `${nm}(${[
+                rcv = `${nm}_${1 + arity}(${[
                     rcv
                 ].concat([
                     arg
@@ -8812,10 +8825,10 @@ const asJs = {
         return rcv;
     },
     ImplicitDictionaryAtPutSyntax (_c, k, _a, e) {
-        return `_atPut(_implicitDictionary, '${k.sourceString}', ${e.asJs})`;
+        return `_atPut_3(_implicitDictionary, '${k.sourceString}', ${e.asJs})`;
     },
     ImplicitDictionaryAtSyntax (_c, k) {
-        return `_at(_implicitDictionary, '${k.sourceString}')`;
+        return `_at_2(_implicitDictionary, '${k.sourceString}')`;
     },
     Block (_l, blk, _r) {
         return blk.asJs;
@@ -8823,11 +8836,9 @@ const asJs = {
     BlockBody (arg, tmp, prm, stm) {
         let arityCheck = '';
         if (false) {
-            const blkSource = '{ ' + this.sourceString + '}';
-            const arity = slBlockArity(blkSource);
-            arityCheck = `if(arguments.length !== ${arity}) { throw(Error('Arity')); }`;
+            arityCheck = `if(arguments.length !== ${arg.arityOf}) { console.error('Arity: expected ${arg.arityOf}, ${arg.asJs}'); }`;
         }
-        return `function(${arg.asJs}) { ${arityCheck} ${tmp.asJs} ${prm.asJs} ${stm.asJs} }`;
+        return `(function(${arg.asJs}) { ${arityCheck} ${tmp.asJs} ${prm.asJs} ${stm.asJs} })`;
     },
     Arguments (arg, _r) {
         return commaList(arg.children);
@@ -8846,14 +8857,14 @@ const asJs = {
     },
     ApplyWithTrailingClosuresSyntax (rcv, arg, tc) {
         const opt = arg.asJs;
-        return `${rcv.asJs}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
+        return `${rcv.asJs}_${arg.arityOf + tc.children.length}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
     },
     ApplyWithTrailingDictionariesSyntax (rcv, arg, tc) {
         const opt = arg.asJs;
-        return `${rcv.asJs}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
+        return `${rcv.asJs}_${arg.arityOf + tc.children.length}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
     },
     Apply (rcv, arg) {
-        return `${rcv.asJs}(...[${arg.asJs}])`;
+        return `${rcv.asJs}_${arg.arityOf}(...[${arg.asJs}])`;
     },
     ParameterList (_l, sq, _r) {
         return commaList(sq.asIteration().children);
@@ -8874,19 +8885,20 @@ const asJs = {
         return `[${commaList(array.asIteration().children)}]`;
     },
     ArrayRangeSyntax (_l, start, _d, end, _r) {
-        return `_asArray(_to(${start.asJs}, ${end.asJs}))`;
+        return `_asArray_1(_to_2(${start.asJs}, ${end.asJs}))`;
     },
     ArrayRangeThenSyntax (_l, start, _c_, then, _d, end, _r) {
-        return `_asArray(_thenTo(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
+        return `_asArray_1(_thenTo_3(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
     },
     IntervalSyntax (_l, start, _d, end, _r) {
-        return `_to(${start.asJs}, ${end.asJs})`;
+        return `_to_2(${start.asJs}, ${end.asJs})`;
     },
     IntervalThenSyntax (_l, start, _c_, then, _d, end, _r) {
-        return `_thenTo(${start.asJs}, ${then.asJs}, ${end.asJs})`;
+        return `_thenTo_3(${start.asJs}, ${then.asJs}, ${end.asJs})`;
     },
-    identifier (_l, _r) {
-        return `_${this.sourceString}`;
+    identifier (c1, cN, _, a) {
+        const name = `_${c1.sourceString}${cN.sourceString}${a.children.length === 0 ? '' : '_' + a.sourceString.slice(2)}`;
+        return name;
     },
     reservedIdentifier (id) {
         switch(id.sourceString){
@@ -8908,10 +8920,10 @@ const asJs = {
         return `'${s.sourceString}'`;
     },
     doubleQuotedStringLiteral (_l, s, _r) {
-        return `_parseDoubleQuotedString('${s.sourceString}')`;
+        return `_parseDoubleQuotedString_1('${s.sourceString}')`;
     },
     backtickQuotedStringLiteral (_l, s, _r) {
-        return `_parseBacktickQuotedString('${s.sourceString}')`;
+        return `_parseBacktickQuotedString_1('${s.sourceString}')`;
     },
     NonemptyListOf (first, _sep, rest) {
         return first.asJs + '; ' + rest.children.map((c)=>c.asJs);
@@ -8927,6 +8939,27 @@ const asJs = {
     }
 };
 slSemantics.addAttribute('asJs', asJs);
+const arityOf = {
+    NonEmptyParameterList (_l, sq, _r) {
+        return sq.asIteration().children.length;
+    },
+    ParameterList (_l, sq, _r) {
+        return sq.asIteration().children.length;
+    },
+    Block (_l, blk, _r) {
+        return blk.arityOf;
+    },
+    BlockBody (arg, tmp, prm, stm) {
+        return arg.arityOf;
+    },
+    Arguments (nm, _) {
+        return nm.children.length;
+    },
+    _iter (...children) {
+        return arraySum(children.map((c)=>c.arityOf));
+    }
+};
+slSemantics.addAttribute('arityOf', arityOf);
 function commaList(nodeArray) {
     return nodeArray.map((e)=>e.asJs).join(', ');
 }
@@ -8935,32 +8968,35 @@ function gensym() {
     rewriteGensymCounter += 1;
     return `__gensym${rewriteGensymCounter}`;
 }
-function makeMethod(slProc, clsNm, mthNm, mthBlk) {
+function makeMethod(slProc, clsNmArray, mthNm, mthBlk) {
     const blkSource = mthBlk.sourceString;
-    const blkArity = slBlockArity(blkSource);
-    return ` sl.${slProc}('${clsNm}', '${sl.methodName(mthNm)}', ${blkArity}, ${mthBlk.asJs}, ${JSON.stringify(blkSource)});`;
+    const blkArity = mthBlk.arityOf;
+    const blkJs = mthBlk.asJs;
+    const blkSrc = JSON.stringify(blkSource);
+    const slName = sl.methodName(mthNm);
+    return clsNmArray.map(function(clsNm) {
+        return ` sl.${slProc}('${clsNm}', '${slName}', ${blkArity}, ${blkJs}, ${blkSrc});`;
+    }).join(' ');
 }
-function makeMethodList(slProc, clsNm, mthNms, mthBlks) {
+function makeMethodList(slProc, clsNmArray, mthNms, mthBlks) {
     let mthList = '';
     while(mthNms.length > 0){
         const mthNm = mthNms.shift();
         const mthBlk = mthBlks.shift();
-        mthList += makeMethod(slProc, clsNm, mthNm, mthBlk);
+        const mthSrc = makeMethod(slProc, clsNmArray, mthNm, mthBlk);
+        mthList += mthSrc;
     }
     return mthList;
 }
 function rewriteString(str) {
     const answer = slParse(str).asJs;
-    consoleDebug(`rewriteString: ${str} => ${answer}`);
     return answer;
 }
 export { rewriteString as rewriteString };
 function evaluateString(slStr) {
     if (slStr.trim().length > 0) {
-        consoleDebug(`evaluateString: sl: ${slStr}`);
         try {
             const jsStr = rewriteString(slStr);
-            consoleDebug(`evaluateString: js: ${jsStr}`);
             if (jsStr.trim().length > 0) {
                 try {
                     return eval(jsStr);
@@ -8972,11 +9008,9 @@ function evaluateString(slStr) {
             return console.error(`evaluateString: rewrite: ${err}: ${slStr}`);
         }
     }
-    consoleDebug('evaluateString: empty?');
     return null;
 }
 async function evaluateUrl(urlString) {
-    consoleDebug(`evaluateUrl: ${urlString}`);
     await load_utf8(urlString).then(evaluateString);
 }
 export { evaluateString as evaluateString };
@@ -9045,10 +9079,14 @@ class PriorityQueue {
         this.ids.length = this.values.length = this.length;
     }
 }
+function throwError(text) {
+    console.error(text);
+    throw Error(text);
+}
 function stringCapitalizeFirstLetter(aString) {
     return aString.charAt(0).toUpperCase() + aString.slice(1);
 }
-const operatorNameCharacters = '+*-/&|@<>=%!\\~?^#$:';
+const operatorNameCharacters = '+*-/&|@<>=%!\\~?^#$:;.';
 function isOperatorName(name) {
     return operatorNameCharacters.includes(name.charAt(0));
 }
@@ -9063,15 +9101,17 @@ const operatorNameTable = {
     '<': 'lessThan',
     '>': 'greaterThan',
     '=': 'equals',
-    '%': 'percent',
+    '%': 'modulo',
     '!': 'bang',
     '\\': 'backslash',
-    '~': 'tilde',
+    '~': 'not',
     '?': 'query',
     '^': 'hat',
     '#': 'hash',
     '$': 'dollar',
-    ':': 'colon'
+    ':': 'colon',
+    ';': 'semicolon',
+    '.': 'dot'
 };
 function operatorMethodName(operator) {
     const words = [
@@ -9093,7 +9133,7 @@ function objectType(anObject) {
 }
 function typeOf(anObject) {
     if (anObject === null || anObject === undefined) {
-        return 'Nil';
+        return 'UndefinedObject';
     } else {
         switch(typeof anObject){
             case 'boolean':
@@ -9146,7 +9186,6 @@ function makeMethodTuple(procedure, arity, source) {
 }
 const traitMethods = new Map();
 function addTrait(traitName) {
-    consoleDebug(`addTrait: ${traitName}`);
     if (!traitTypes.has(traitName)) {
         traitTypes.set(traitName, []);
         traitMethods.set(traitName, new Map());
@@ -9154,12 +9193,10 @@ function addTrait(traitName) {
 }
 function addTypeTraits(typeName, traitNameArray) {
     traitNameArray.forEach(function(traitName) {
-        consoleDebug(`addTypeTraits: ${typeName}, ${traitName}`);
         traitTypes.get(traitName).push(typeName);
     });
 }
 function addTraitMethod(traitName, name, arity, method, source) {
-    consoleDebug(`addTypeTrait: ${traitName}, ${name}, ${arity}`);
     const trait = traitMethods.get(traitName);
     if (!trait.has(name)) {
         trait.set(name, []);
@@ -9167,98 +9204,118 @@ function addTraitMethod(traitName, name, arity, method, source) {
     trait.get(name).push(makeMethodTuple(method, arity, source));
 }
 function copyTraitToType(traitName, typeName) {
-    consoleDebug(`copyTraitToType: ${traitName}, ${typeName}`);
     const methods = traitMethods.get(traitName);
     for (const [name, table] of methods){
         table.forEach(function(item) {
             const [procedure, arity, source] = item;
-            consoleDebug(`copyTraitToType: ${traitName}, ${typeName}, ${name}, ${arity}`);
             addMethod(typeName, name, arity, procedure, source);
         });
     }
 }
 function extendTraitWithMethod(traitName, name, arity, method, source) {
     const types = traitTypes.get(traitName);
-    consoleDebug(`extendTraitWithMethod: ${traitName}, ${name}`);
     addTraitMethod(traitName, name, arity, method, source);
     types.forEach(function(typeName) {
-        consoleDebug(`extendTraitWithMethod: ${traitName}, ${typeName}, ${name}`);
         addMethod(typeName, name, arity, method, source);
     });
 }
 const genericProcedures = new Map();
+function lookupGeneric(methodName, methodArity, receiverType) {
+    return genericProcedures.get(methodName).get(methodArity).get(receiverType);
+}
+function nameWithoutArity(methodName) {
+    return methodName.split(':')[0];
+}
 function applyGenericAt(methodName, parameterArray, receiverType) {
-    const method = genericProcedures.get(methodName).get(parameterArray.length).get(receiverType);
+    const method = lookupGeneric(methodName, parameterArray.length, receiverType);
     return method[0].apply(null, parameterArray);
 }
-function dispatch(name, genericProcedureTable, parameterArray) {
-    const arity = parameterArray.length;
-    const typeTable = genericProcedureTable.get(arity);
-    if (typeTable) {
-        if (arity === 0) {
-            const method = typeTable.get('Void');
-            if (method) {
-                return method[0].apply(null, []);
-            } else {
-                return throwError(`dispatch: no zero arity method: ${name}`);
-            }
+function dispatchByType(name, arity, typeTable, parameterArray) {
+    if (arity === 0) {
+        const method = typeTable.get('Void');
+        if (method) {
+            return method[0].apply(null, []);
         } else {
-            const receiver = parameterArray[0];
-            const receiverType = typeOf(receiver);
-            const typeMethod = typeTable.get(receiverType);
-            if (typeMethod) {
-                consoleDebug(`dispatch: name=${name}, arity=${arity}, type=${receiverType}`);
-                return typeMethod[0].apply(null, parameterArray);
-            } else {
-                const defaultMethod = typeTable.get('Object');
-                if (defaultMethod) {
-                    return defaultMethod[0].apply(null, parameterArray);
-                } else {
-                    return throwError(`dispatch: no method for type: ${receiverType}; arity=${arity} name=${name}`);
-                }
-            }
+            return throwError(`dispatchByType: no zero arity method: ${name}`);
         }
     } else {
-        return throwError(`dispatch: no entry for arity: name=${name}, arity=${arity}`);
+        const receiver = parameterArray[0];
+        const receiverType = typeOf(receiver);
+        const typeMethod = typeTable.get(receiverType);
+        if (typeMethod) {
+            return typeMethod[0].apply(null, parameterArray);
+        } else {
+            const defaultMethod = typeTable.get('Object');
+            if (defaultMethod) {
+                return defaultMethod[0].apply(null, parameterArray);
+            } else {
+                return throwError(`dispatchByType: no method for type: ${receiverType}; arity=${arity} name=${name}`);
+            }
+        }
+    }
+}
+function dispatchByArity(name, arity, arityTable, parameterArray) {
+    const typeTable = arityTable.get(arity);
+    if (typeTable) {
+        return dispatchByType(name, arity, typeTable, parameterArray);
+    } else {
+        return throwError(`dispatchbyArity: no entry for arity: name=${name}, arity=${arity}`);
     }
 }
 function addMethod(typeName, name, arity, method, source) {
     const prefixedName = '_' + name;
-    let globalFunction = globalThis[prefixedName];
+    const prefixedNameWithArity = [
+        '_',
+        name,
+        '_',
+        String(arity)
+    ].join('');
+    let globalFunctionWithArity = globalThis[prefixedNameWithArity];
     if (!genericProcedures.has(name)) {
         genericProcedures.set(name, new Map());
     }
-    let genericProcedure = genericProcedures.get(name);
-    if (globalFunction === undefined) {
-        globalFunction = globalThis[prefixedName] = function(...argumentsArray) {
-            consoleDebug(`dispatch: ${name}, ${JSON.stringify(argumentsArray)}`);
-            return dispatch(name, genericProcedure, argumentsArray);
+    let arityTable = genericProcedures.get(name);
+    if (false) {
+        let globalFunction = globalThis[prefixedName];
+        if (globalFunction === undefined) {
+            globalFunction = globalThis[prefixedName] = function(...argumentsArray) {
+                return dispatchByArity(name, argumentsArray.length, arityTable, argumentsArray);
+            };
+            Object.defineProperty(globalFunction, "name", {
+                value: name
+            });
+            Object.defineProperty(globalFunction, "hasRestParameters", {
+                value: true
+            });
+        }
+    }
+    if (!arityTable.has(arity)) {
+        arityTable.set(arity, new Map());
+    }
+    arityTable.get(arity).set(typeName, makeMethodTuple(method, arity, source));
+    if (globalFunctionWithArity === undefined) {
+        const typeTable = arityTable.get(arity);
+        globalFunctionWithArity = globalThis[prefixedNameWithArity] = function(...argumentsArray) {
+            return dispatchByType(name, arity, typeTable, argumentsArray);
         };
-        Object.defineProperty(globalFunction, "name", {
-            value: name
-        });
-        Object.defineProperty(globalFunction, "hasRestParameters", {
-            value: true
+        Object.defineProperty(globalFunctionWithArity, "name", {
+            value: [
+                name,
+                ':/',
+                String(arity)
+            ].join('')
         });
     }
-    if (!genericProcedure.has(arity)) {
-        genericProcedure.set(arity, new Map());
-    }
-    consoleDebug(`addMethod: ${typeName}, ${name}, ${arity}`);
-    genericProcedure.get(arity).set(typeName, makeMethodTuple(method, arity, source));
 }
 function addType(typeName, slotNames) {
     const slots = slotNames.map((each)=>`${each}: ${each}`).join(', ');
-    const defType = slotNames.length === 0 ? '' : `addMethod('Object', '${typeName}', ${slotNames.length}, function(${slotNames.join(', ')}) { return {type: '${typeName}', ${slots} }; }, '<primitive>')`;
-    const defClassAccess = `addMethod('${typeName}', 'class', 1, function(anInstance) { return _${typeName}; }, '<primitive>')`;
+    const defType = slotNames.length === 0 ? '' : `addMethod('Object', 'new${typeName}', ${slotNames.length}, function(${slotNames.join(', ')}) { return {type: '${typeName}', ${slots} }; }, '<primitive>')`;
     const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive>')`;
     const defPredicateFalse = `addMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive>')`;
     const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive>');`).join('; ');
     const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive>');`).join('; ');
-    consoleDebug(`addType: ${typeName}, ${slotNames}`);
     typeList.push(typeName);
     eval(defType);
-    eval(defClassAccess);
     eval(defPredicateTrue);
     eval(defPredicateFalse);
     eval(defSlotAccess);
@@ -9293,6 +9350,10 @@ function assignGlobals() {
         [
             'typeList',
             typeList
+        ],
+        [
+            'nextUniqueId',
+            1
         ]
     ]);
     globalThis._workspace = new Map();
@@ -9314,8 +9375,11 @@ export { addTraitMethod as addTraitMethod };
 export { copyTraitToType as copyTraitToType };
 export { extendTraitWithMethod as extendTraitWithMethod };
 export { genericProcedures as genericProcedures };
+export { lookupGeneric as lookupGeneric };
+export { nameWithoutArity as nameWithoutArity };
 export { applyGenericAt as applyGenericAt };
-export { dispatch as dispatch };
+export { dispatchByType as dispatchByType };
+export { dispatchByArity as dispatchByArity };
 export { addMethod as addMethod };
 export { addType as addType };
 export { shiftRight as shiftRight };
@@ -9329,7 +9393,7 @@ function setLoadPath(directoryName) {
     loader.loadPath = directoryName;
 }
 function resolveFileName(fileName) {
-    const resolvedName = `${loader.loadPath}/${fileName}`;
+    const resolvedName = fileName[0] === '/' ? fileName : `${loader.loadPath}/${fileName}`;
     console.log(`resolveFileName: ${resolvedName}`);
     return resolvedName;
 }

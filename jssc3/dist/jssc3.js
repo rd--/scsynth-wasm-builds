@@ -184,7 +184,7 @@ function arraySort(anArray, aFunction) {
     return anArray.sort(aFunction);
 }
 function arraySum(anArray) {
-    return anArray.reduce((lhs, rhs)=>lhs + rhs);
+    return anArray.reduce((lhs, rhs)=>lhs + rhs, 0);
 }
 function arrayTail(anArray) {
     return anArray.slice(1, anArray.length);
@@ -534,11 +534,8 @@ export { encodeInt32 as encodeInt32 };
 export { encodeFloat32 as encodeFloat32 };
 export { encodeFloat32Array as encodeFloat32Array };
 export { encodePascalString as encodePascalString };
-const printDebug = false;
 function consoleDebug(text) {
-    if (false) {
-        console.debug(text);
-    }
+    console.debug(text);
 }
 function consoleWarn(text) {
     console.warn(text);
@@ -560,7 +557,6 @@ function logErrorAndReturn(fromWhere, reason, defaultValue) {
     console.error(`${fromWhere}: ${reason}`);
     return defaultValue;
 }
-export { printDebug as printDebug };
 export { consoleDebug as consoleDebug };
 export { consoleWarn as consoleWarn };
 export { consoleError as consoleError };
@@ -703,9 +699,7 @@ function user_program_read_archive(inputId, selectId) {
     const fileList = fileInput.files;
     const jsonFile = fileList[0];
     if (fileInput && fileList && jsonFile) {
-        consoleDebug(`user_program_read_archive: ${jsonFile}`);
         read_json_file_and_then(jsonFile, function(obj) {
-            consoleDebug(`user_program_read_archive: ${obj}`);
             Object.assign(userPrograms.programs, obj);
             user_storage_sync(selectId);
         });
@@ -1195,6 +1189,50 @@ export { rateAr as rateAr };
 export { rateDr as rateDr };
 export { rateSelectorTable as rateSelectorTable };
 export { rateSelector as rateSelector };
+function ampDb(self) {
+    return Math.log10(self) * 20;
+}
+function coin(self) {
+    return Math.random() < self;
+}
+function cpsMidi(self) {
+    return Math.log2(self * (1 / 440)) * 12 + 69;
+}
+function cpsOct(self) {
+    return Math.log2(self * (1.0 / 440.0)) + 4.75;
+}
+function dbAmp(self) {
+    return Math.pow(10, self * 0.05);
+}
+function difSqr(self, aNumber) {
+    return self * self - aNumber * aNumber;
+}
+function hypot(self, aNumber) {
+    return Math.sqrt(self * self + aNumber * aNumber);
+}
+function midiCps(self) {
+    return 440 * 2 ** ((self - 69) * (1 / 12));
+}
+function midiRatio(self) {
+    return Math.pow(2.0, self * (1.0 / 12.0));
+}
+function octCps(self) {
+    return 440.0 * Math.pow(2.0, self - 4.75);
+}
+function ratioMidi(self) {
+    return 12.0 * Math.log2(self);
+}
+export { ampDb as ampDb };
+export { coin as coin };
+export { cpsMidi as cpsMidi };
+export { cpsOct as cpsOct };
+export { dbAmp as dbAmp };
+export { difSqr as difSqr };
+export { hypot as hypot };
+export { midiCps as midiCps };
+export { midiRatio as midiRatio };
+export { octCps as octCps };
+export { ratioMidi as ratioMidi };
 const unaryOperators = {
     Neg: 0,
     Not: 1,
@@ -1388,11 +1426,9 @@ function inputBranch(input, onUgen, onNumber, onError) {
     }
 }
 function inputRate(input) {
-    consoleDebug(`inputRate: ${input}`);
     return inputBranch(input, (port)=>port.scUgen.rate, (_unusedNumber)=>0, ()=>-1);
 }
 function deriveRate(rateOrFilterUgenInputs, inputArray) {
-    consoleDebug(`deriveRate: ${rateOrFilterUgenInputs} ${inputArray}`);
     if (isNumber(rateOrFilterUgenInputs)) {
         return rateOrFilterUgenInputs;
     } else {
@@ -1406,7 +1442,6 @@ function mceInputTransform(aSignal) {
     return arrayTranspose(arrayExtendToBeOfEqualSize(aSignal));
 }
 function makeUgen(name, numChan, rateSpec, specialIndex, signalArray) {
-    consoleDebug(`makeUgen: ${name} ${numChan} ${rateSpec} ${specialIndex} ${signalArray}`);
     if (requiresMce(signalArray)) {
         return arrayMap((item)=>makeUgen(name, numChan, rateSpec, specialIndex, item), mceInputTransform(signalArray));
     } else {
@@ -1434,19 +1469,15 @@ function ugenDisplayName(ugen) {
 }
 function inputFirstUgen(input) {
     if (isArray(input)) {
-        consoleDebug(`inputFirstUgen: array: ${input}`);
         return arrayFind(arrayMap(inputFirstUgen, input), isScUgen) || null;
     } else if (isUgen(input)) {
-        consoleDebug(`inputFirstUgen: port: ${input}`);
         return input.scUgen;
     } else {
-        consoleDebug(`inputFirstUgen: number: ${input}`);
         return null;
     }
 }
 function mrg(lhs, rhs) {
     const ugen = inputFirstUgen(lhs);
-    consoleDebug(`mrg: ${lhs}, ${rhs}, ${ugen}`);
     if (ugen && ugen.mrg) {
         if (isArray(rhs)) {
             const mrgSet = ugen.mrg;
@@ -1462,17 +1493,14 @@ function mrg(lhs, rhs) {
 function krMutateInPlace(input) {
     if (isUgen(input)) {
         const inputPort = input;
-        consoleDebug(`kr: port: ${inputPort}`);
         krMutateInPlace(inputPort.scUgen);
     } else if (isScUgen(input)) {
         const inputUgen = input;
-        consoleDebug(`kr: ugen: ${inputUgen}`);
         if (inputUgen.rate === 2) {
             inputUgen.rate = rateKr;
         }
         arrayForEach(inputUgen.inputArray, (item)=>krMutateInPlace(item));
     } else if (isArray(input)) {
-        consoleDebug(`kr: array: ${input}`);
         arrayForEach(input, (item)=>krMutateInPlace(item));
     } else {
         if (!isNumber(input)) {
@@ -1501,14 +1529,42 @@ function UnaryOpWithConstantOptimiser(specialIndex, input) {
                 return input * input * input;
             case 14:
                 return Math.sqrt(input);
+            case 15:
+                return Math.exp(input);
             case 16:
                 return 1 / input;
+            case 17:
+                return midiCps(input);
+            case 18:
+                return cpsMidi(input);
+            case 19:
+                return midiRatio(input);
+            case 20:
+                return ratioMidi(input);
+            case 21:
+                return dbAmp(input);
+            case 22:
+                return ampDb(input);
+            case 23:
+                return octCps(input);
+            case 24:
+                return cpsOct(input);
+            case 25:
+                return Math.log(input);
+            case 26:
+                return Math.log2(input);
+            case 27:
+                return Math.log10(input);
             case 28:
                 return Math.sin(input);
             case 29:
                 return Math.cos(input);
             case 30:
                 return Math.tan(input);
+            case 36:
+                return Math.tanh(input);
+            case 44:
+                return coin(input) ? 1.0 : 0.0;
         }
     }
     return makeUgen('UnaryOpUGen', 1, [
@@ -1538,6 +1594,10 @@ function BinaryOpWithConstantOptimiser(specialIndex, lhs, rhs) {
                 return lhs * rhs;
             case 4:
                 return lhs / rhs;
+            case 23:
+                return hypot(lhs, rhs);
+            case 34:
+                return difSqr(lhs, rhs);
         }
     }
     return makeUgen('BinaryOpUGen', 1, [
@@ -1554,7 +1614,6 @@ function BinaryOp(specialIndex, lhs, rhs) {
             asArray(lhs),
             asArray(rhs)
         ]);
-        consoleDebug(`BinaryOp: array constant: ${expanded}`);
         return arrayMap((item)=>BinaryOpWithConstantOptimiser(specialIndex, item[0], item[1]), expanded);
     } else {
         return BinaryOpWithConstantOptimiser(specialIndex, lhs, rhs);
@@ -4495,22 +4554,12 @@ function Splay(inArray, spread, level, center, levelComp) {
     const n = Math.max(2, signalSize(inArray));
     const pos = arrayFromTo(0, n - 1).map((item)=>Add(Mul(Sub(Mul(item, Fdiv(2, Sub(n, 1))), 1), spread), center));
     const lvl = Mul(level, levelComp ? Sqrt(1 / n) : 1);
-    consoleDebug(`Splay: ${[
-        n,
-        pos,
-        lvl
-    ]}`);
     return arrayReduce(Pan2(inArray, pos, lvl), Add);
 }
 function Splay2(inArray) {
     const n = Math.max(2, signalSize(inArray));
     const pos = arrayFromTo(0, n - 1).map((item)=>item * (2 / (n - 1)) - 1);
     const lvl = Math.sqrt(1 / n);
-    consoleDebug(`Splay2: ${[
-        n,
-        pos,
-        lvl
-    ]}`);
     return arrayReduce(Pan2(inArray, pos, lvl), Add);
 }
 function LinLin(input, srclo, srchi, dstlo, dsthi) {
@@ -4594,7 +4643,7 @@ function asLocalBuf(aSignal) {
         return mrg(lhs, rhs);
     }
 }
-function clearBuf(buf) {
+function BufClear(buf) {
     return mrg(buf, ClearBuf(buf));
 }
 function BufRec(bufnum, reset, inputArray) {
@@ -4610,7 +4659,6 @@ function asKlankSpec(freq, amp, time) {
         fromMaybe(amp, arrayReplicate(n, 1)),
         fromMaybe(time, arrayReplicate(n, 1))
     ];
-    consoleDebug(`asKlankSpec: ${a}`);
     return arrayConcatenation(arrayTranspose(arrayExtendToBeOfEqualSize(a)));
 }
 function RingzBank(input, freq, amp, time) {
@@ -4667,8 +4715,8 @@ function DelayTap(bufnum, delayTime) {
 function PingPongDelay(left, right, maxDelayTime, delayTime, feedback) {
     const delaySize = Mul(maxDelayTime, SampleRate());
     const phase = Phasor(0, 1, 0, delaySize, 0);
-    const leftBuffer = clearBuf(LocalBuf(1, delaySize));
-    const rightBuffer = clearBuf(LocalBuf(1, delaySize));
+    const leftBuffer = BufClear(LocalBuf(1, delaySize));
+    const rightBuffer = BufClear(LocalBuf(1, delaySize));
     const leftDelayedSignal = BufRd(1, leftBuffer, Wrap(Sub(phase, Mul(delayTime, SampleRate())), 0, delaySize), 1, 2);
     const rightDelayedSignal = BufRd(1, rightBuffer, Wrap(Sub(phase, Mul(delayTime, SampleRate())), 0, delaySize), 1, 2);
     const output = [
@@ -4683,7 +4731,7 @@ function PingPongDelay(left, right, maxDelayTime, delayTime, feedback) {
 }
 function MultiTapDelay(timesArray, levelsArray, input) {
     const delayFrames = Mul(arrayMaxItem(timesArray), SampleRate());
-    const buf = clearBuf(LocalBuf(1, delayFrames));
+    const buf = BufClear(LocalBuf(1, delayFrames));
     const writer = DelayWrite(buf, input);
     const numReaders = timesArray.length;
     const readers = arrayFromTo(0, numReaders - 1).map((item)=>Mul(DelayTap(buf, timesArray[item]), levelsArray[item]));
@@ -4742,7 +4790,7 @@ export { TxLine as TxLine };
 export { AudioIn as AudioIn };
 export { AudioOut as AudioOut };
 export { asLocalBuf as asLocalBuf };
-export { clearBuf as clearBuf };
+export { BufClear as BufClear };
 export { BufRec as BufRec };
 export { LocalBuf as BufAlloc };
 export { BufWrite as BufWrite };
@@ -5246,13 +5294,10 @@ export { PenZ as PenZ };
 export { PenAngle as PenAngle };
 export { PenRadius as PenRadius };
 function ugenTraverseCollecting(p, c, w) {
-    consoleDebug(`ugenTraverseCollecting: ${p}, ${c}, ${w}`);
     if (isArray(p)) {
-        consoleDebug(`ugenTraverseCollecting: array: ${p}`);
         arrayForEach(p, (item)=>ugenTraverseCollecting(item, c, w));
     } else if (isUgen(p)) {
         const mrgArray = setAsArray(p.scUgen.mrg);
-        consoleDebug(`ugenTraverseCollecting: port: ${p}`);
         if (!setIncludes(w, p.scUgen)) {
             setAdd(c, p.scUgen);
             arrayForEach(p.scUgen.inputArray, (item)=>isNumber(item) ? setAdd(c, item) : ugenTraverseCollecting(item, c, w));
@@ -5263,7 +5308,6 @@ function ugenTraverseCollecting(p, c, w) {
     }
 }
 function ugenGraphLeafNodes(p) {
-    consoleDebug(`ugenGraphLeafNodes: ${p}`);
     const c = setNew();
     ugenTraverseCollecting(p, c, setNew());
     return setAsArray(c);
@@ -5279,11 +5323,9 @@ class Graph {
     }
 }
 function signalToUgenGraph(signal) {
-    consoleDebug(`signalToUgenGraph: ${signal}`);
     return signal;
 }
 function makeGraph(name, signal) {
-    consoleDebug(`makeGraph: ${name}, ${signal}`);
     const graph = signalToUgenGraph(signal);
     const leafNodes = ugenGraphLeafNodes(graph);
     const constantNodes = arrayFilter(leafNodes, isNumber);
@@ -5348,7 +5390,6 @@ function graphEncodeSyndef(graph) {
     ]);
 }
 function encodeUgen(name, ugen) {
-    consoleDebug(`encodeUgen: ${name}, ${ugen}`);
     return graphEncodeSyndef(makeGraph(name, ugen));
 }
 export { ugenTraverseCollecting as ugenTraverseCollecting };
@@ -5433,7 +5474,6 @@ class Scsynth {
 }
 function scsynthEnsure(scsynth, activity) {
     if (scsynth.isAlive) {
-        consoleDebug('scsynthEnsure: alive, do activity');
         activity();
     } else if (scsynth.isStarting) {
         console.log('scsynthEnsure: starting, schedule activity');
@@ -5561,7 +5601,6 @@ function scsynthWasm(options, wasm, status) {
     return scsynth;
 }
 function sendOscWasm(scsynth, wasm, oscPacket) {
-    consoleDebug(`sendOscWasm: ${oscPacket}`);
     if ((scsynth.isStarting || scsynth.isAlive) && wasm.oscDriver) {
         const port = wasm.oscDriver[scsynth.synthPort];
         const recv = port && port.receive;
@@ -5584,7 +5623,6 @@ function bootScsynthWasm(scsynth, wasm) {
         args.push('-z', String(scsynth.options.blockSize));
         args.push('-w', '512');
         args.push('-m', '32768');
-        consoleDebug('bootScsynthWasm: callMain');
         wasm.callMain(args);
         setTimeout(()=>monitorOscWasm(scsynth, wasm), 1000);
         setInterval(()=>sendOscWasm(scsynth, wasm, m_status), 1000);
@@ -5594,7 +5632,6 @@ function bootScsynthWasm(scsynth, wasm) {
     }
 }
 function monitorOscWasm(scsynth, wasm) {
-    consoleDebug('monitorOscWasm');
     wasm.oscDriver[scsynth.langPort] = {
         receive: function(addr, data) {
             if (scsynth.isStarting) {
@@ -5628,7 +5665,6 @@ if (globalThis.Module !== undefined) {
 }
 function sc3_wasm_init(showStatus) {
     globalThis.globalScsynth = scsynthWasm(scsynthDefaultOptions, globalThis.Module, showStatus);
-    consoleDebug(`sc3_wasm_init: Module: ${globalThis.Module}`);
     globalThis.onerror = function(event) {
         consoleLogMessageFrom('globalThis.onerror', String(event));
     };
@@ -5727,15 +5763,6 @@ function roundTo(a, b) {
 function truncateTo(a, b) {
     return Trunc(a, b);
 }
-function cpsMidi(aNumber) {
-    return CpsMidi(aNumber);
-}
-function midiCps(aNumber) {
-    return MidiCps(aNumber);
-}
-function midiRatio(aNumber) {
-    return MidiRatio(aNumber);
-}
 function unitCps(aNumber) {
     return UnitCps(aNumber);
 }
@@ -5791,9 +5818,6 @@ export { max as max };
 export { min as min };
 export { roundTo as roundTo };
 export { truncateTo as truncateTo };
-export { cpsMidi as cpsMidi };
-export { midiCps as midiCps };
-export { midiRatio as midiRatio };
 export { unitCps as unitCps };
 export { rand as rand };
 export { rand2 as rand2 };
