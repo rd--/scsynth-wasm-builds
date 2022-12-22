@@ -8591,7 +8591,7 @@ Sl {
       | AtPutQuotedSyntax
       | AtSyntax
       | AtQuotedSyntax
-      | ValueSyntax
+      | ValueApplySyntax
       | DotExpressionWithTrailingClosuresSyntax
       | DotExpressionWithTrailingDictionariesSyntax
       | DotExpressionWithAssignmentSyntax
@@ -8617,7 +8617,7 @@ Sl {
     AtPutQuotedSyntax = Primary "::" identifier ":=" Expression
     AtSyntax = Primary "[" Expression "]"
     AtQuotedSyntax = Primary "::" identifier
-    ValueSyntax = Primary "." ParameterList
+    ValueApplySyntax = Primary "." ParameterList
     NonEmptyParameterList =  "(" NonemptyListOf<Expression, ","> ")"
 
     DotExpressionWithTrailingClosuresSyntax = Primary "." identifier NonEmptyParameterList? Block+
@@ -8637,9 +8637,9 @@ Sl {
     NonFinalExpression = Expression ";" Statements
     FinalExpression = Expression ";"?
 
-    ApplyWithTrailingClosuresSyntax = Primary NonEmptyParameterList? Block+
-    ApplyWithTrailingDictionariesSyntax = Primary NonEmptyParameterList? NonEmptyDictionaryExpression+
-    Apply = Primary ParameterList
+    ApplyWithTrailingClosuresSyntax = identifier NonEmptyParameterList? Block+
+    ApplyWithTrailingDictionariesSyntax = identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
+    Apply = identifier ParameterList
     ParameterList =  "(" ListOf<Expression, ","> ")"
     ParenthesisedExpression = "(" Expression ")"
     NonEmptyDictionaryExpression = "(" NonemptyListOf<AssociationExpression, ","> ")"
@@ -8688,6 +8688,14 @@ function slParseToAst(str) {
 function slTemporariesSyntaxNames(str) {
     return slParseToAst(str)[0];
 }
+const slOptions = {
+    insertArityCheck: false,
+    simpleArityModel: false
+};
+export { slOptions as slOptions };
+function genName(name, arity) {
+    return slOptions.simpleArityModel ? name : `${name}_${arity}`;
+}
 const asJs = {
     ClassExtension (_e, clsNm, _l, mthNm, mthBlk, _r) {
         return makeMethodList('addMethod', [
@@ -8734,8 +8742,9 @@ const asJs = {
         return 'var ' + commaList(tmp.asIteration().children) + ';';
     },
     TemporaryWithBlockLiteralInitializer (nm, _, blk) {
-        var name = nm.asJs;
-        return `${name} = ${blk.asJs}, ${name}_${blk.arityOf} = ${name}`;
+        const name = nm.asJs;
+        const arityForm = slOptions.simpleArityModel ? '' : `, ${genName(name, blk.arityOf)} = ${name}`;
+        return `${name} = ${blk.asJs}${arityForm}`;
     },
     TemporaryWithExpressionInitializer (nm, _, exp) {
         return nm.asJs + ' = ' + exp.asJs;
@@ -8743,13 +8752,13 @@ const asJs = {
     TemporaryWithDictionaryInitializer (_l, lhs, _r, _e, rhs) {
         const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
         const rhsName = gensym();
-        const slots = namesArray.map((name)=>`_${name} = _at_2(${rhsName}, '${name}')`).join(', ');
+        const slots = namesArray.map((name)=>`_${name} = _${genName('at', 2)}(${rhsName}, '${name}')`).join(', ');
         return `${rhsName} = ${rhs.asJs}, ${slots}`;
     },
     TemporaryWithArrayInitializer (_l, lhs, _r, _e, rhs) {
         const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
         const rhsName = gensym();
-        const slots = namesArray.map((name, index)=>`_${name} = _at_2(${rhsName}, ${index + 1})`).join(', ');
+        const slots = namesArray.map((name, index)=>`_${name} = _${genName('at', 2)}(${rhsName}, ${index + 1})`).join(', ');
         return `${rhsName} = ${rhs.asJs}, ${slots}`;
     },
     TemporariesWithoutInitializers (_l, tmp, _r) {
@@ -8768,40 +8777,42 @@ const asJs = {
         while(opsArray.length > 0){
             const op = opsArray.shift();
             const right = rhsArray.shift();
-            left = `_${sl.operatorMethodName(op)}_2(${left}, ${right})`;
+            left = `_${genName(sl.operatorMethodName(op), 2)}(${left}, ${right})`;
         }
         return left;
     },
     AtPutSyntax (c, _l, k, _r, _e, v) {
-        return `_atPut_3(${c.asJs}, ${k.asJs}, ${v.asJs})`;
+        return `_${genName('atPut', 3)}(${c.asJs}, ${k.asJs}, ${v.asJs})`;
     },
     AtPutQuotedSyntax (c, _c, k, _e, v) {
-        return `_atPut_3(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
+        return `_${genName('atPut', 3)}(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
     },
     AtSyntax (c, _l, k, _r) {
-        return `_at_2(${c.asJs}, ${k.asJs})`;
+        return `_${genName('at', 2)}(${c.asJs}, ${k.asJs})`;
     },
     AtQuotedSyntax (c, _c, k) {
-        return `_at_2(${c.asJs}, '${k.sourceString}')`;
+        return `_${genName('at', 2)}(${c.asJs}, '${k.sourceString}')`;
     },
-    ValueSyntax (p, _d, a) {
+    ValueApplySyntax (p, _d, a) {
         return `${p.asJs}(${a.asJs})`;
     },
     NonEmptyParameterList (_l, sq, _r) {
         return commaList(sq.asIteration().children);
     },
     DotExpressionWithTrailingClosuresSyntax (lhs, _dot, nm, args, tc) {
-        return `${nm.asJs}_${1 + args.arityOf + tc.children.length}(${[
+        const name = `${genName(nm.asJs, 1 + args.arityOf + tc.children.length)}`;
+        return `${name}(${[
             lhs.asJs
         ].concat(args.children.map((c)=>c.asJs), tc.children.map((c)=>c.asJs))})`;
     },
     DotExpressionWithTrailingDictionariesSyntax (lhs, _dot, nm, args, tc) {
-        return `${nm.asJs}_${1 + args.arityOf + tc.children.length}(${[
+        const name = `${genName(nm.asJs, 1 + args.arityOf + tc.children.length)}`;
+        return `${name}(${[
             lhs.asJs
         ].concat(args.children.map((c)=>c.asJs), tc.children.map((c)=>c.asJs))})`;
     },
     DotExpressionWithAssignmentSyntax (lhs, _dot, nm, _asg, rhs) {
-        return `${nm.asJs}_2(${lhs.asJs}, ${rhs.asJs})`;
+        return `${genName(nm.asJs, 2)}(${lhs.asJs}, ${rhs.asJs})`;
     },
     DotExpression (lhs, _dot, nms, args) {
         let rcv = lhs.asJs;
@@ -8813,9 +8824,9 @@ const asJs = {
             const arg = argsArray.shift();
             const arity = arityArray.shift();
             if (arg.length === 0) {
-                rcv = `${nm}_1(${rcv})`;
+                rcv = `${genName(nm, 1)}(${rcv})`;
             } else {
-                rcv = `${nm}_${1 + arity}(${[
+                rcv = `${genName(nm, 1 + arity)}(${[
                     rcv
                 ].concat([
                     arg
@@ -8825,17 +8836,17 @@ const asJs = {
         return rcv;
     },
     ImplicitDictionaryAtPutSyntax (_c, k, _a, e) {
-        return `_atPut_3(_implicitDictionary, '${k.sourceString}', ${e.asJs})`;
+        return `_${genName('atPut', 3)}(_implicitDictionary, '${k.sourceString}', ${e.asJs})`;
     },
     ImplicitDictionaryAtSyntax (_c, k) {
-        return `_at_2(_implicitDictionary, '${k.sourceString}')`;
+        return `_${genName('at', 2)}(_implicitDictionary, '${k.sourceString}')`;
     },
     Block (_l, blk, _r) {
         return blk.asJs;
     },
     BlockBody (arg, tmp, prm, stm) {
         let arityCheck = '';
-        if (false) {
+        if (slOptions.insertArityCheck) {
             arityCheck = `if(arguments.length !== ${arg.arityOf}) { console.error('Arity: expected ${arg.arityOf}, ${arg.asJs}'); }`;
         }
         return `(function(${arg.asJs}) { ${arityCheck} ${tmp.asJs} ${prm.asJs} ${stm.asJs} })`;
@@ -8857,14 +8868,16 @@ const asJs = {
     },
     ApplyWithTrailingClosuresSyntax (rcv, arg, tc) {
         const opt = arg.asJs;
-        return `${rcv.asJs}_${arg.arityOf + tc.children.length}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
+        const name = `${genName(rcv.asJs, arg.arityOf + tc.children.length)}`;
+        return `${name}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
     },
     ApplyWithTrailingDictionariesSyntax (rcv, arg, tc) {
         const opt = arg.asJs;
-        return `${rcv.asJs}_${arg.arityOf + tc.children.length}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
+        const name = `${genName(rcv.asJs, arg.arityOf + tc.children.length)}`;
+        return `${name}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
     },
     Apply (rcv, arg) {
-        return `${rcv.asJs}_${arg.arityOf}(...[${arg.asJs}])`;
+        return `${genName(rcv.asJs, arg.arityOf)}(...[${arg.asJs}])`;
     },
     ParameterList (_l, sq, _r) {
         return commaList(sq.asIteration().children);
@@ -8885,19 +8898,20 @@ const asJs = {
         return `[${commaList(array.asIteration().children)}]`;
     },
     ArrayRangeSyntax (_l, start, _d, end, _r) {
-        return `_asArray_1(_to_2(${start.asJs}, ${end.asJs}))`;
+        return `_${genName('asArray', 1)}(_${genName('to', 2)}(${start.asJs}, ${end.asJs}))`;
     },
     ArrayRangeThenSyntax (_l, start, _c_, then, _d, end, _r) {
-        return `_asArray_1(_thenTo_3(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
+        return `_${genName('asArray', 1)}(_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
     },
     IntervalSyntax (_l, start, _d, end, _r) {
-        return `_to_2(${start.asJs}, ${end.asJs})`;
+        return `_${genName('to', 2)}(${start.asJs}, ${end.asJs})`;
     },
     IntervalThenSyntax (_l, start, _c_, then, _d, end, _r) {
-        return `_thenTo_3(${start.asJs}, ${then.asJs}, ${end.asJs})`;
+        return `_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs})`;
     },
     identifier (c1, cN, _, a) {
-        const name = `_${c1.sourceString}${cN.sourceString}${a.children.length === 0 ? '' : '_' + a.sourceString.slice(2)}`;
+        const arityPart = slOptions.simpleArityModel ? '' : `${a.children.length === 0 ? '' : '_' + a.sourceString.slice(2)}`;
+        const name = `_${c1.sourceString}${cN.sourceString}${arityPart}`;
         return name;
     },
     reservedIdentifier (id) {
@@ -8920,10 +8934,10 @@ const asJs = {
         return `'${s.sourceString}'`;
     },
     doubleQuotedStringLiteral (_l, s, _r) {
-        return `_parseDoubleQuotedString_1('${s.sourceString}')`;
+        return `_${genName('parseDoubleQuotedString', 1)}('${s.sourceString}')`;
     },
     backtickQuotedStringLiteral (_l, s, _r) {
-        return `_parseBacktickQuotedString_1('${s.sourceString}')`;
+        return `_${genName('parseBacktickQuotedString', 1)}('${s.sourceString}')`;
     },
     NonemptyListOf (first, _sep, rest) {
         return first.asJs + '; ' + rest.children.map((c)=>c.asJs);
@@ -9263,19 +9277,16 @@ function dispatchByArity(name, arity, arityTable, parameterArray) {
     }
 }
 function addMethod(typeName, name, arity, method, source) {
-    const prefixedName = '_' + name;
-    const prefixedNameWithArity = [
-        '_',
-        name,
-        '_',
-        String(arity)
-    ].join('');
-    let globalFunctionWithArity = globalThis[prefixedNameWithArity];
     if (!genericProcedures.has(name)) {
         genericProcedures.set(name, new Map());
     }
     let arityTable = genericProcedures.get(name);
-    if (false) {
+    if (!arityTable.has(arity)) {
+        arityTable.set(arity, new Map());
+    }
+    arityTable.get(arity).set(typeName, makeMethodTuple(method, arity, source));
+    if (slOptions.simpleArityModel) {
+        const prefixedName = '_' + name;
         let globalFunction = globalThis[prefixedName];
         if (globalFunction === undefined) {
             globalFunction = globalThis[prefixedName] = function(...argumentsArray) {
@@ -9288,23 +9299,18 @@ function addMethod(typeName, name, arity, method, source) {
                 value: true
             });
         }
-    }
-    if (!arityTable.has(arity)) {
-        arityTable.set(arity, new Map());
-    }
-    arityTable.get(arity).set(typeName, makeMethodTuple(method, arity, source));
-    if (globalFunctionWithArity === undefined) {
-        const typeTable = arityTable.get(arity);
-        globalFunctionWithArity = globalThis[prefixedNameWithArity] = function(...argumentsArray) {
-            return dispatchByType(name, arity, typeTable, argumentsArray);
-        };
-        Object.defineProperty(globalFunctionWithArity, "name", {
-            value: [
-                name,
-                ':/',
-                String(arity)
-            ].join('')
-        });
+    } else {
+        const prefixedNameWithArity = `_${name}_${arity}`;
+        let globalFunctionWithArity = globalThis[prefixedNameWithArity];
+        if (globalFunctionWithArity === undefined) {
+            const typeTable = arityTable.get(arity);
+            globalFunctionWithArity = globalThis[prefixedNameWithArity] = function(...argumentsArray) {
+                return dispatchByType(name, arity, typeTable, argumentsArray);
+            };
+            Object.defineProperty(globalFunctionWithArity, "name", {
+                value: `${name}:/${arity}`
+            });
+        }
     }
 }
 function addType(typeName, slotNames) {
