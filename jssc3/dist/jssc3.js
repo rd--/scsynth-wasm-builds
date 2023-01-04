@@ -567,7 +567,154 @@ export { logErrorAndReturn as logErrorAndReturn };
 function functionArity(aFunction) {
     return aFunction.length;
 }
+function makeAritySpecificFunction(arrayFunction, arity) {
+    switch(arity){
+        case 0:
+            return function() {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 1:
+            return function(a) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 2:
+            return function(a, b) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 3:
+            return function(a, b, c) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 4:
+            return function(a, b, c, d) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 5:
+            return function(a, b, c, d, e) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 6:
+            return function(a, b, c, d, e, f) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 7:
+            return function(a, b, c, d, e, f, g) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 8:
+            return function(a, b, c, d, e, f, g, h) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 9:
+            return function(a, b, c, d, e, f, g, h, i) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 10:
+            return function(a, b, c, d, e, f, g, h, i, j) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 11:
+            return function(a, b, c, d, e, f, g, h, i, j, k) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 12:
+            return function(a, b, c, d, e, f, g, h, i, j, k, l) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 13:
+            return function(a, b, c, d, e, f, g, h, i, j, k, l, m) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 14:
+            return function(a, b, c, d, e, f, g, h, i, j, k, l, m, n) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 15:
+            return function(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 16:
+            return function(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 17:
+            return function(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q) {
+                return arrayFunction.apply(null, arguments);
+            };
+        case 18:
+            return function(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r) {
+                return arrayFunction.apply(null, arguments);
+            };
+        default:
+            throw `makeAritySpecificFunction: arity not supported: ${arity}`;
+    }
+}
+function makeCheckedAritySpecificFunction(arrayFunction, arity) {
+    const checkArity = function(anArray) {
+        if (anArray.length !== arity) {
+            const errorString = `makeCheckedAritySpecificFunction: ${anArray.length} != ${arity}`;
+            console.error(errorString);
+            throw errorString;
+        }
+    };
+    switch(arity){
+        case 0:
+            return function() {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 1:
+            return function(a) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 2:
+            return function(a, b) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 3:
+            return function(a, b, c) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 4:
+            return function(a, b, c, d) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 5:
+            return function(a, b, c, d, e) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 6:
+            return function(a, b, c, d, e, f) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 7:
+            return function(a, b, c, d, e, f, g) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 8:
+            return function(a, b, c, d, e, f, g, h) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        case 9:
+            return function(a, b, c, d, e, f, g, h, i) {
+                checkArity(arguments);
+                return arrayFunction.apply(null, arguments);
+            };
+        default:
+            throw `makeCheckedAritySpecificFunction: arity not supported: ${arity}`;
+    }
+}
 export { functionArity as functionArity };
+export { makeAritySpecificFunction as makeAritySpecificFunction };
+export { makeCheckedAritySpecificFunction as makeCheckedAritySpecificFunction };
 function url_append_timestamp(url) {
     const ext = (/\?/.test(url) ? '&' : '?') + new Date().getTime();
     return url + ext;
@@ -4765,6 +4912,9 @@ function BHiPass4(input, freq, rq) {
     var sqrtRq = Sqrt(rq);
     return BHiPass(BHiPass(input, freq, sqrtRq), freq, sqrtRq);
 }
+function EqPan2(input, pos) {
+    return Pan2(input, pos, 1);
+}
 export { wrapOut as wrapOut };
 export { Adsr as Adsr };
 export { Asr as Asr };
@@ -4820,6 +4970,7 @@ export { DynRingzBank as DynRingzBank };
 export { Changed as Changed };
 export { BLowPass4 as BLowPass4 };
 export { BHiPass4 as BHiPass4 };
+export { EqPan2 as EqPan2 };
 function PointerW(n) {
     return ControlIn(1, 15001 + n * 10);
 }
@@ -5867,8 +6018,6 @@ function stc_binary_selector_from_operator(text) {
             return 'Pow';
         case '->':
             return 'Association';
-        case 'midiCps':
-            return 'MidiCps';
         default:
             console.warn(`stc_binary_selector_from_operator: ${text}`);
             return text;

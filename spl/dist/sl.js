@@ -8690,7 +8690,9 @@ function slTemporariesSyntaxNames(str) {
 }
 const slOptions = {
     insertArityCheck: false,
-    simpleArityModel: false
+    requireTypeExists: true,
+    simpleArityModel: false,
+    multipleNamesForLocalBlocks: true
 };
 export { slOptions as slOptions };
 function genName(name, arity) {
@@ -8739,15 +8741,17 @@ const asJs = {
         return tmp.asJs + stm.asJs;
     },
     TemporariesWithInitializers (_l, tmp, _s, _r) {
-        return 'var ' + commaList(tmp.asIteration().children) + ';';
+        return `var ${commaList(tmp.asIteration().children)};`;
     },
     TemporaryWithBlockLiteralInitializer (nm, _, blk) {
         const name = nm.asJs;
-        const arityForm = slOptions.simpleArityModel ? '' : `, ${genName(name, blk.arityOf)} = ${name}`;
-        return `${name} = ${blk.asJs}${arityForm}`;
+        const genNm = `${genName(name, blk.arityOf)}`;
+        const genBind = `${genNm} = ${blk.asJs}`;
+        const reBind = !slOptions.simpleArityModel && slOptions.multipleNamesForLocalBlocks ? `, ${name} = ${genNm}` : '';
+        return `${genBind}${reBind}`;
     },
     TemporaryWithExpressionInitializer (nm, _, exp) {
-        return nm.asJs + ' = ' + exp.asJs;
+        return `${nm.asJs} = ${exp.asJs}`;
     },
     TemporaryWithDictionaryInitializer (_l, lhs, _r, _e, rhs) {
         const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
@@ -8762,13 +8766,13 @@ const asJs = {
         return `${rhsName} = ${rhs.asJs}, ${slots}`;
     },
     TemporariesWithoutInitializers (_l, tmp, _r) {
-        return 'var ' + commaList(tmp.children) + '; ';
+        return `var ${commaList(tmp.children)};`;
     },
     TemporariesVarSyntax (_l, tmp, _r) {
-        return 'var ' + commaList(tmp.asIteration().children) + '; ';
+        return `var ${commaList(tmp.asIteration().children)};`;
     },
     Assignment (lhs, _, rhs) {
-        return lhs.asJs + ' = ' + rhs.asJs;
+        return `${lhs.asJs} = ${rhs.asJs}`;
     },
     BinaryExpression (lhs, ops, rhs) {
         let left = lhs.asJs;
@@ -8847,7 +8851,7 @@ const asJs = {
     BlockBody (arg, tmp, prm, stm) {
         let arityCheck = '';
         if (slOptions.insertArityCheck) {
-            arityCheck = `if(arguments.length !== ${arg.arityOf}) { console.error('Arity: expected ${arg.arityOf}, ${arg.asJs}'); }`;
+            arityCheck = `if(arguments.length !== ${arg.arityOf}) { var err = 'Arity: expected ${arg.arityOf}, ${arg.asJs}'; console.error(err); throw err; }`;
         }
         return `(function(${arg.asJs}) { ${arityCheck} ${tmp.asJs} ${prm.asJs} ${stm.asJs} })`;
     },
@@ -8861,10 +8865,10 @@ const asJs = {
         return s.sourceString;
     },
     NonFinalExpression (e, _, stm) {
-        return e.asJs + '; ' + stm.asJs;
+        return `${e.asJs}; ${stm.asJs};`;
     },
     FinalExpression (e, _) {
-        return 'return ' + e.asJs + ';';
+        return `return ${e.asJs};`;
     },
     ApplyWithTrailingClosuresSyntax (rcv, arg, tc) {
         const opt = arg.asJs;
@@ -8883,7 +8887,7 @@ const asJs = {
         return commaList(sq.asIteration().children);
     },
     ParenthesisedExpression (_l, e, _r) {
-        return '(' + e.asJs + ')';
+        return `(${e.asJs})`;
     },
     DictionaryExpression (_l, dict, _r) {
         return `new Map([${commaList(dict.asIteration().children)}])`;
@@ -8940,7 +8944,7 @@ const asJs = {
         return `_${genName('parseBacktickQuotedString', 1)}('${s.sourceString}')`;
     },
     NonemptyListOf (first, _sep, rest) {
-        return first.asJs + '; ' + rest.children.map((c)=>c.asJs);
+        return `${first.asJs}; ${rest.children.map((c)=>c.asJs)}`;
     },
     EmptyListOf () {
         return '';
@@ -9189,36 +9193,44 @@ function isString(anObject) {
 function isByte(anObject) {
     return isNumber(anObject) && Number.isInteger(anObject) && anObject >= 0 && anObject < 256;
 }
-const typeList = [];
-const traitTypes = new Map();
-function makeMethodTuple(procedure, arity, source) {
+const typeList = [
+    'Array',
+    'ByteArray',
+    'Number',
+    'Object',
+    'Procedure',
+    'String',
+    'Void'
+];
+const traitTypeTable = new Map();
+function makeMethodEntry(procedure, arity, sourceCode) {
     return [
         procedure,
         arity,
-        source
+        sourceCode
     ];
 }
-const traitMethods = new Map();
+const traitMethodTable = new Map();
 function addTrait(traitName) {
-    if (!traitTypes.has(traitName)) {
-        traitTypes.set(traitName, []);
-        traitMethods.set(traitName, new Map());
+    if (!traitTypeTable.has(traitName)) {
+        traitTypeTable.set(traitName, []);
+        traitMethodTable.set(traitName, new Map());
     }
 }
 function addTypeTraits(typeName, traitNameArray) {
     traitNameArray.forEach(function(traitName) {
-        traitTypes.get(traitName).push(typeName);
+        traitTypeTable.get(traitName).push(typeName);
     });
 }
 function addTraitMethod(traitName, name, arity, method, source) {
-    const trait = traitMethods.get(traitName);
+    const trait = traitMethodTable.get(traitName);
     if (!trait.has(name)) {
         trait.set(name, []);
     }
-    trait.get(name).push(makeMethodTuple(method, arity, source));
+    trait.get(name).push(makeMethodEntry(method, arity, source));
 }
 function copyTraitToType(traitName, typeName) {
-    const methods = traitMethods.get(traitName);
+    const methods = traitMethodTable.get(traitName);
     for (const [name, table] of methods){
         table.forEach(function(item) {
             const [procedure, arity, source] = item;
@@ -9227,15 +9239,15 @@ function copyTraitToType(traitName, typeName) {
     }
 }
 function extendTraitWithMethod(traitName, name, arity, method, source) {
-    const types = traitTypes.get(traitName);
+    const types = traitTypeTable.get(traitName);
     addTraitMethod(traitName, name, arity, method, source);
     types.forEach(function(typeName) {
         addMethod(typeName, name, arity, method, source);
     });
 }
-const genericProcedures = new Map();
+const methodTable = new Map();
 function lookupGeneric(methodName, methodArity, receiverType) {
-    return genericProcedures.get(methodName).get(methodArity).get(receiverType);
+    return methodTable.get(methodName).get(methodArity).get(receiverType);
 }
 function nameWithoutArity(methodName) {
     return methodName.split(':')[0];
@@ -9277,14 +9289,18 @@ function dispatchByArity(name, arity, arityTable, parameterArray) {
     }
 }
 function addMethod(typeName, name, arity, method, source) {
-    if (!genericProcedures.has(name)) {
-        genericProcedures.set(name, new Map());
+    if (slOptions.requireTypeExists && !typeList.includes(typeName)) {
+        console.error(`addMethod: type does not exist: ${typeName}`);
+        return;
     }
-    let arityTable = genericProcedures.get(name);
+    if (!methodTable.has(name)) {
+        methodTable.set(name, new Map());
+    }
+    let arityTable = methodTable.get(name);
     if (!arityTable.has(arity)) {
         arityTable.set(arity, new Map());
     }
-    arityTable.get(arity).set(typeName, makeMethodTuple(method, arity, source));
+    arityTable.get(arity).set(typeName, makeMethodEntry(method, arity, source));
     if (slOptions.simpleArityModel) {
         const prefixedName = '_' + name;
         let globalFunction = globalThis[prefixedName];
@@ -9309,6 +9325,9 @@ function addMethod(typeName, name, arity, method, source) {
             };
             Object.defineProperty(globalFunctionWithArity, "name", {
                 value: `${name}:/${arity}`
+            });
+            Object.defineProperty(globalFunctionWithArity, "length", {
+                value: arity
             });
         }
     }
@@ -9342,16 +9361,16 @@ function assignGlobals() {
     globalThis._implicitDictionary = new Map();
     globalThis._system = new Map([
         [
-            'genericProcedures',
-            genericProcedures
+            'methodTable',
+            methodTable
         ],
         [
-            'traitTypes',
-            traitTypes
+            'traitTypeTable',
+            traitTypeTable
         ],
         [
-            'traitMethods',
-            traitMethods
+            'traitMethodTable',
+            traitMethodTable
         ],
         [
             'typeList',
@@ -9373,14 +9392,14 @@ export { isIdentitySet as isIdentitySet };
 export { isString as isString };
 export { isByte as isByte };
 export { typeList as typeList };
-export { traitTypes as traitTypes };
-export { traitMethods as traitMethods };
+export { traitTypeTable as traitTypeTable };
+export { traitMethodTable as traitMethodTable };
 export { addTrait as addTrait };
 export { addTypeTraits as addTypeTraits };
 export { addTraitMethod as addTraitMethod };
 export { copyTraitToType as copyTraitToType };
 export { extendTraitWithMethod as extendTraitWithMethod };
-export { genericProcedures as genericProcedures };
+export { methodTable as methodTable };
 export { lookupGeneric as lookupGeneric };
 export { nameWithoutArity as nameWithoutArity };
 export { applyGenericAt as applyGenericAt };
