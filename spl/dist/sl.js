@@ -8712,14 +8712,13 @@ const asJs = {
         function makeClassDefinition(clsNm, trt, tmp, mthNms, mthBlks) {
             const tmpSrc = tmp.sourceString;
             const tmpNm = tmpSrc === '' ? [] : slTemporariesSyntaxNames(tmpSrc).map((nm)=>`'${nm}'`);
-            const typ = `sl.addType('${clsNm}', [${tmpNm}]);`;
-            const addTraits = `sl.addTypeTraits('${clsNm}', [${trt}]);`;
             const traitList = trt.split(', ').filter((each)=>each.length > 0);
-            const cpyTraits = traitList.map((trtNm)=>`sl.copyTraitToType(${trtNm}, '${clsNm}');`).join(' ');
-            const mth = makeMethodList('addMethod', [
+            const addType = `sl.addType('${clsNm}', [${trt}], [${tmpNm}]);`;
+            const copyTraits = traitList.map((trtNm)=>`sl.copyTraitToType(${trtNm}, '${clsNm}');`).join(' ');
+            const addMethods = makeMethodList('addMethod', [
                 clsNm
             ], mthNms, mthBlks);
-            return `${typ}${addTraits}${cpyTraits}${mth}`;
+            return `${addType}${copyTraits}${addMethods}`;
         }
         return makeClassDefinition(clsNm.sourceString, trt.asJs, tmp, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
@@ -9194,16 +9193,6 @@ function isString(anObject) {
 function isByte(anObject) {
     return isNumber(anObject) && Number.isInteger(anObject) && anObject >= 0 && anObject < 256;
 }
-const typeList = [
-    'Array',
-    'ByteArray',
-    'Method',
-    'Number',
-    'Procedure',
-    'String',
-    'Void'
-];
-const traitTypeTable = new Map();
 class Method {
     constructor(name, procedure, arity, sourceCode, origin){
         this.name = name;
@@ -9212,41 +9201,75 @@ class Method {
         this.sourceCode = sourceCode;
         this.origin = origin;
     }
-}
-const traitMethodTable = new Map();
-function addTrait(traitName) {
-    if (!traitTypeTable.has(traitName)) {
-        traitTypeTable.set(traitName, []);
-        traitMethodTable.set(traitName, new Map());
+    qualifiedName() {
+        return `${this.name}:/${this.arity}`;
     }
 }
-function addTypeTraits(typeName, traitNameArray) {
-    traitNameArray.forEach(function(traitName) {
-        traitTypeTable.get(traitName).push(typeName);
-    });
+class Trait {
+    name;
+    methodDictionary;
+    constructor(name){
+        this.name = name;
+        this.methodDictionary = new Map();
+    }
+}
+const traitDictionary = new Map();
+class Type {
+    name;
+    traitArray;
+    slotArray;
+    methodDictionary;
+    constructor(name, traitArray, slotArray){
+        this.name = name;
+        this.traitArray = traitArray;
+        this.slotArray = slotArray;
+        this.methodDictionary = new Map();
+    }
+}
+const typeDictionary = new Map([
+    [
+        'Array',
+        new Type('Array', [], [])
+    ],
+    [
+        'String',
+        new Type('String', [], [])
+    ],
+    [
+        'Void',
+        new Type('Void', [], [])
+    ]
+]);
+function addTrait(traitName) {
+    if (!traitDictionary.has(traitName)) {
+        traitDictionary.set(traitName, new Trait(traitName));
+    }
 }
 function addTraitMethod(traitName, methodName, arity, procedure, sourceCode) {
-    const trait = traitMethodTable.get(traitName);
-    if (!trait.has(methodName)) {
-        trait.set(methodName, []);
-    }
+    const trait = traitDictionary.get(traitName);
     const method = new Method(methodName, procedure, arity, sourceCode, traitName);
-    trait.get(methodName).push(method);
+    trait.methodDictionary.set(method.qualifiedName(), method);
     return method;
 }
 function copyTraitToType(traitName, typeName) {
-    const methods = traitMethodTable.get(traitName);
-    for (const [name, table] of methods){
-        table.forEach(function(method) {
-            addMethodFor(typeName, name, method);
-        });
+    const methodDictionary = traitDictionary.get(traitName).methodDictionary;
+    for (const [name, method] of methodDictionary){
+        addMethodFor(typeName, method);
     }
 }
+function traitTypeArray(traitName) {
+    const answer = [];
+    for (const [typeName, typeValue] of typeDictionary){
+        if (typeValue.traitArray.includes(traitName)) {
+            answer.push(typeName);
+        }
+    }
+    return answer;
+}
 function extendTraitWithMethod(traitName, name, arity, procedure, sourceCode) {
-    const types = traitName === 'Object' ? typeList : traitTypeTable.get(traitName);
     const method = addTraitMethod(traitName, name, arity, procedure, sourceCode);
-    types.forEach(function(typeName) {
-        addMethodFor(typeName, name, method);
+    traitTypeArray(traitName).forEach(function(typeName) {
+        addMethodFor(typeName, method);
     });
     return method;
 }
@@ -9288,22 +9311,22 @@ function dispatchByArity(name, arity, arityTable, parameterArray) {
         return throwError(`dispatchbyArity: no entry for arity: name=${name}, arity=${arity}`);
     }
 }
-function addMethodFor(typeName, name, method) {
-    if (slOptions.requireTypeExists && !typeList.includes(typeName)) {
+function addMethodFor(typeName, method) {
+    if (slOptions.requireTypeExists && !typeDictionary.has(typeName)) {
         console.error(`addMethodFor: type does not exist: ${typeName}`);
         return;
     }
-    if (!methodTable.has(name)) {
-        methodTable.set(name, new Map());
+    if (!methodTable.has(method.name)) {
+        methodTable.set(method.name, new Map());
         if (slOptions.simpleArityModel) {
-            const prefixedName = '_' + name;
+            const prefixedName = '_' + method.name;
             let globalFunction = globalThis[prefixedName];
             if (globalFunction === undefined) {
                 globalFunction = globalThis[prefixedName] = function(...argumentsArray) {
-                    return dispatchByArity(name, argumentsArray.length, arityTable, argumentsArray);
+                    return dispatchByArity(method.name, argumentsArray.length, arityTable, argumentsArray);
                 };
                 Object.defineProperty(globalFunction, "name", {
-                    value: name
+                    value: method.name
                 });
                 Object.defineProperty(globalFunction, "hasRestParameters", {
                     value: true
@@ -9311,19 +9334,19 @@ function addMethodFor(typeName, name, method) {
             }
         }
     }
-    let arityTable = methodTable.get(name);
+    let arityTable = methodTable.get(method.name);
     if (!arityTable.has(method.arity)) {
         arityTable.set(method.arity, new Map());
         if (!slOptions.simpleArityModel) {
-            const prefixedNameWithArity = `_${name}_${method.arity}`;
+            const prefixedNameWithArity = `_${method.name}_${method.arity}`;
             let globalFunctionWithArity = globalThis[prefixedNameWithArity];
             if (globalFunctionWithArity === undefined) {
                 const typeTable = arityTable.get(method.arity);
                 globalFunctionWithArity = globalThis[prefixedNameWithArity] = function(...argumentsArray) {
-                    return dispatchByType(name, method.arity, typeTable, argumentsArray);
+                    return dispatchByType(method.name, method.arity, typeTable, argumentsArray);
                 };
                 Object.defineProperty(globalFunctionWithArity, "name", {
-                    value: `${name}:/${method.arity}`
+                    value: method.qualifiedName()
                 });
                 Object.defineProperty(globalFunctionWithArity, "length", {
                     value: method.arity
@@ -9335,20 +9358,23 @@ function addMethodFor(typeName, name, method) {
     if (existingEntry && existingEntry.origin === typeName && method.origin !== typeName) {} else {
         arityTable.get(method.arity).set(typeName, method);
     }
+    if (typeName === method.origin) {
+        typeDictionary.get(typeName).methodDictionary.set(method.qualifiedName(), method);
+    }
     return method;
 }
 function addMethod(typeName, methodName, arity, procedure, sourceCode) {
     const method = new Method(methodName, procedure, arity, sourceCode, typeName);
-    return addMethodFor(typeName, methodName, method);
+    return addMethodFor(typeName, method);
 }
-function addType(typeName, slotNames) {
+function addType(typeName, traitList, slotNames) {
     const slots = slotNames.map((each)=>`${each}: ${each}`).join(', ');
     const defType = slotNames.length === 0 ? '' : `extendTraitWithMethod('Object', 'new${typeName}', ${slotNames.length}, function(${slotNames.join(', ')}) { return {type: '${typeName}', ${slots} }; }, '<primitive>')`;
     const defPredicateFalse = `extendTraitWithMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive>')`;
     const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive>')`;
     const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive>');`).join('; ');
     const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive>');`).join('; ');
-    typeList.push(typeName);
+    typeDictionary.set(typeName, new Type(typeName, traitList, slotNames));
     eval(defType);
     eval(defPredicateFalse);
     eval(defPredicateTrue);
@@ -9374,16 +9400,12 @@ function assignGlobals() {
             methodTable
         ],
         [
-            'traitTypeTable',
-            traitTypeTable
+            'traitDictionary',
+            traitDictionary
         ],
         [
-            'traitMethodTable',
-            traitMethodTable
-        ],
-        [
-            'typeList',
-            typeList
+            'typeDictionary',
+            typeDictionary
         ],
         [
             'nextUniqueId',
@@ -9400,14 +9422,15 @@ export { isNumber as isNumber };
 export { isIdentitySet as isIdentitySet };
 export { isString as isString };
 export { isByte as isByte };
-export { typeList as typeList };
-export { traitTypeTable as traitTypeTable };
 export { Method as Method };
-export { traitMethodTable as traitMethodTable };
+export { Trait as Trait };
+export { traitDictionary as traitDictionary };
+export { Type as Type };
+export { typeDictionary as typeDictionary };
 export { addTrait as addTrait };
-export { addTypeTraits as addTypeTraits };
 export { addTraitMethod as addTraitMethod };
 export { copyTraitToType as copyTraitToType };
+export { traitTypeArray as traitTypeArray };
 export { extendTraitWithMethod as extendTraitWithMethod };
 export { methodTable as methodTable };
 export { lookupGeneric as lookupGeneric };

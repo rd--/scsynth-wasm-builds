@@ -4680,6 +4680,7 @@ function wrapOut(bus, ugen) {
         if (isOutputSignal(ugen)) {
             return Out(bus, ugen);
         } else {
+            console.error('wrapOut', bus, ugen);
             throwError('wrapOut: not output signal');
             return Out(bus, Dc(0));
         }
