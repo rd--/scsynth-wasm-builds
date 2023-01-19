@@ -5320,19 +5320,43 @@ function SfAcquire(urlOrKey, numberOfChannels, channelSelector) {
 }
 export { sc3_buffer as sc3_buffer };
 export { SfAcquire as SfAcquire };
-function EventParam(v, u) {
-    return {
-        v: v,
-        w: u[0],
-        x: u[1],
-        y: u[2],
-        z: u[3],
-        o: u[4],
-        rx: u[5],
-        ry: u[6],
-        p: u[7],
-        px: u[8]
-    };
+class CcEvent {
+    voice;
+    data;
+    constructor(voice, data){
+        this.voice = voice;
+        this.data = data;
+    }
+    get v() {
+        return this.voice;
+    }
+    get w() {
+        return this.data[0];
+    }
+    get x() {
+        return this.data[1];
+    }
+    get y() {
+        return this.data[2];
+    }
+    get z() {
+        return this.data[3];
+    }
+    get o() {
+        return this.data[4];
+    }
+    get rx() {
+        return this.data[5];
+    }
+    get ry() {
+        return this.data[6];
+    }
+    get p() {
+        return this.data[7];
+    }
+    get px() {
+        return this.data[8];
+    }
 }
 function eventV(e) {
     return e.v;
@@ -5368,10 +5392,10 @@ function voiceAddr(voiceNumber) {
 function Voicer(numVoices, voiceFunc) {
     return arrayFromTo(1, numVoices).map(function(c) {
         const controlArray = ControlIn(9, voiceAddr(c + 0));
-        return voiceFunc(EventParam(c + 0, controlArray));
+        return voiceFunc(new CcEvent(c + 0, controlArray));
     });
 }
-function eventParamSetMessage(e) {
+function ccEventParamSetMessage(e) {
     return c_setn1(voiceAddr(e.v), [
         e.w,
         e.x,
@@ -5420,7 +5444,7 @@ function PenAngle(voiceNumber) {
 function PenRadius(voiceNumber) {
     return ControlIn(1, voiceAddr(voiceNumber) + 5);
 }
-export { EventParam as EventParam };
+export { CcEvent as CcEvent };
 export { eventV as eventV };
 export { eventW as eventW };
 export { eventX as eventX };
@@ -5432,7 +5456,7 @@ export { eventRy as eventRy };
 export { eventP as eventP };
 export { voiceAddr as voiceAddr };
 export { Voicer as Voicer };
-export { eventParamSetMessage as eventParamSetMessage };
+export { ccEventParamSetMessage as ccEventParamSetMessage };
 export { voiceEndMessage as voiceEndMessage };
 export { KeyDown as KeyDown };
 export { KeyTimbre as KeyTimbre };
@@ -6055,4 +6079,27 @@ function OverlapTexture(graphFunc, sustainTime, transitionTime, overlap) {
     };
     return arrayReduce(arrayMap(voiceFunction, arrayFromTo(0, overlap - 1)), Add);
 }
+function XFadeTexture(graphFunc, sustainTime, transitionTime) {
+    const envDur = (sustainTime + transitionTime) * 2;
+    const voiceFunction = function(phase) {
+        const trg = kr(Impulse(1 / envDur, phase));
+        const snd = graphFunc(trg);
+        const env = new Env([
+            0,
+            1,
+            1,
+            0,
+            0
+        ], [
+            transitionTime,
+            sustainTime,
+            transitionTime,
+            sustainTime
+        ], 'sin', null, null, 0);
+        const sig = Mul(snd, EnvGen(trg, 1, 0, 1, 0, envCoord(env)));
+        return sig;
+    };
+    return Add(voiceFunction(0), voiceFunction(0.5));
+}
 export { OverlapTexture as OverlapTexture };
+export { XFadeTexture as XFadeTexture };
