@@ -1952,15 +1952,15 @@ function Brf(input, freq, rq) {
         rq
     ]);
 }
+function BrownNoise() {
+    return makeUgen('BrownNoise', 1, 2, 0, []);
+}
 function Brz2(input) {
     return makeUgen('BRZ2', 1, [
         0
     ], 0, [
         input
     ]);
-}
-function BrownNoise() {
-    return makeUgen('BrownNoise', 1, 2, 0, []);
 }
 function BufDur(bufnum) {
     return makeUgen('BufDur', 1, 1, 0, [
@@ -2101,6 +2101,14 @@ function CuspN(freq, a, b, xi) {
         xi
     ]);
 }
+function Dbrown(length, lo, hi, step) {
+    return makeUgen('Dbrown', 1, 3, 0, [
+        length,
+        lo,
+        hi,
+        step
+    ]);
+}
 function Dbufrd(bufnum, phase, loop) {
     return makeUgen('Dbufrd', 1, 3, 0, [
         bufnum,
@@ -2206,16 +2214,12 @@ function DetectSilence(input, amp, time, doneAction) {
         doneAction
     ]);
 }
-function Dfm1(input, freq, res, inputgain, type, noiselevel) {
-    return makeUgen('DFM1', 1, [
-        0
-    ], 0, [
-        input,
-        freq,
-        res,
-        inputgain,
-        type,
-        noiselevel
+function Dibrown(length, lo, hi, step) {
+    return makeUgen('Dibrown', 1, 3, 0, [
+        length,
+        lo,
+        hi,
+        step
     ]);
 }
 function Diwhite(length, lo, hi) {
@@ -2235,6 +2239,11 @@ function Dseq(repeats, list) {
         repeats
     ], asArray(list)));
 }
+function Dser(repeats, list) {
+    return makeUgen('Dser', 1, 3, 0, arrayConcat([
+        repeats
+    ], asArray(list)));
+}
 function Dseries(length, start, step) {
     return makeUgen('Dseries', 1, 3, 0, [
         length,
@@ -2245,6 +2254,16 @@ function Dseries(length, start, step) {
 function Dshuf(repeats, list) {
     return makeUgen('Dshuf', 1, 3, 0, arrayConcat([
         repeats
+    ], asArray(list)));
+}
+function Dswitch(index, list) {
+    return makeUgen('Dswitch', 1, 3, 0, arrayConcat([
+        index
+    ], asArray(list)));
+}
+function Dswitch1(index, list) {
+    return makeUgen('Dswitch1', 1, 3, 0, arrayConcat([
+        index
     ], asArray(list)));
 }
 function Dust(density) {
@@ -2265,25 +2284,18 @@ function Duty(dur, reset, doneAction, level) {
         level
     ]);
 }
-function DwgPluckedStiff(freq, amp, gate, pos, c1, c3, inp, release, fB) {
-    return makeUgen('DWGPluckedStiff', 1, 2, 0, [
-        freq,
-        amp,
-        gate,
-        pos,
-        c1,
-        c3,
-        inp,
-        release,
-        fB
-    ]);
-}
 function Dwhite(length, lo, hi) {
     return makeUgen('Dwhite', 1, 3, 0, [
         length,
         lo,
         hi
     ]);
+}
+function Dwrand(repeats, weights, list) {
+    return makeUgen('Dwrand', 1, 3, 0, arrayConcat([
+        repeats,
+        weights
+    ], asArray(list)));
 }
 function Dxrand(repeats, list) {
     return makeUgen('Dxrand', 1, 3, 0, arrayConcat([
@@ -2305,8 +2317,8 @@ function ExpRand(lo, hi) {
         hi
     ]);
 }
-function FbSineL(freq, im, fb, a, c, xi, yi) {
-    return makeUgen('FBSineL', 1, 2, 0, [
+function FbSineC(freq, im, fb, a, c, xi, yi) {
+    return makeUgen('FBSineC', 1, 2, 0, [
         freq,
         im,
         fb,
@@ -2316,8 +2328,8 @@ function FbSineL(freq, im, fb, a, c, xi, yi) {
         yi
     ]);
 }
-function FbSineC(freq, im, fb, a, c, xi, yi) {
-    return makeUgen('FBSineC', 1, 2, 0, [
+function FbSineL(freq, im, fb, a, c, xi, yi) {
+    return makeUgen('FBSineL', 1, 2, 0, [
         freq,
         im,
         fb,
@@ -2373,19 +2385,6 @@ function Fos(input, a0, a1, b1) {
         b1
     ]);
 }
-function FreqShift(input, freq, phase) {
-    return makeUgen('FreqShift', 1, 2, 0, [
-        input,
-        freq,
-        phase
-    ]);
-}
-function FSinOsc(freq, iphase) {
-    return makeUgen('FSinOsc', 1, 2, 0, [
-        freq,
-        iphase
-    ]);
-}
 function FreeVerb(input, mix, room, damp) {
     return makeUgen('FreeVerb', 1, [
         0
@@ -2405,6 +2404,19 @@ function FreeVerb2(input, in2, mix, room, damp) {
         mix,
         room,
         damp
+    ]);
+}
+function FreqShift(input, freq, phase) {
+    return makeUgen('FreqShift', 1, 2, 0, [
+        input,
+        freq,
+        phase
+    ]);
+}
+function FSinOsc(freq, iphase) {
+    return makeUgen('FSinOsc', 1, 2, 0, [
+        freq,
+        iphase
     ]);
 }
 function Gate(input, trig) {
@@ -2587,18 +2599,18 @@ function InRange(input, lo, hi) {
         hi
     ]);
 }
-function IRand(lo, hi) {
-    return makeUgen('IRand', 1, 0, 0, [
-        lo,
-        hi
-    ]);
-}
 function Integrator(input, coef) {
     return makeUgen('Integrator', 1, [
         0
     ], 0, [
         input,
         coef
+    ]);
+}
+function IRand(lo, hi) {
+    return makeUgen('IRand', 1, 0, 0, [
+        lo,
+        hi
     ]);
 }
 function K2A(input) {
@@ -2622,11 +2634,73 @@ function Klank(input, freqscale, freqoffset, decayscale, specificationsArrayRef)
         decayscale
     ], asArray(specificationsArrayRef)));
 }
-function LfBrownNoise1(freq, dev, dist) {
-    return makeUgen('LFBrownNoise1', 1, 2, 0, [
+function Lag(input, lagTime) {
+    return makeUgen('Lag', 1, [
+        0
+    ], 0, [
+        input,
+        lagTime
+    ]);
+}
+function Lag2(input, lagTime) {
+    return makeUgen('Lag2', 1, [
+        0
+    ], 0, [
+        input,
+        lagTime
+    ]);
+}
+function Lag3(input, lagTime) {
+    return makeUgen('Lag3', 1, [
+        0
+    ], 0, [
+        input,
+        lagTime
+    ]);
+}
+function Lag3Ud(input, lagTimeU, lagTimeD) {
+    return makeUgen('Lag3UD', 1, [
+        0
+    ], 0, [
+        input,
+        lagTimeU,
+        lagTimeD
+    ]);
+}
+function LagUd(input, lagTimeU, lagTimeD) {
+    return makeUgen('LagUD', 1, [
+        0
+    ], 0, [
+        input,
+        lagTimeU,
+        lagTimeD
+    ]);
+}
+function Latch(input, trig) {
+    return makeUgen('Latch', 1, [
+        0
+    ], 0, [
+        input,
+        trig
+    ]);
+}
+function LatoocarfianC(freq, a, b, c, d, xi, yi) {
+    return makeUgen('LatoocarfianC', 1, 2, 0, [
         freq,
-        dev,
-        dist
+        a,
+        b,
+        c,
+        d,
+        xi,
+        yi
+    ]);
+}
+function LeakDc(input, coef) {
+    return makeUgen('LeakDC', 1, [
+        0
+    ], 0, [
+        input,
+        coef
     ]);
 }
 function LfClipNoise(freq) {
@@ -2697,83 +2771,6 @@ function LfTri(freq, iphase) {
     return makeUgen('LFTri', 1, 2, 0, [
         freq,
         iphase
-    ]);
-}
-function Lpf(input, freq) {
-    return makeUgen('LPF', 1, [
-        0
-    ], 0, [
-        input,
-        freq
-    ]);
-}
-function Lag(input, lagTime) {
-    return makeUgen('Lag', 1, [
-        0
-    ], 0, [
-        input,
-        lagTime
-    ]);
-}
-function LagUd(input, lagTimeU, lagTimeD) {
-    return makeUgen('LagUD', 1, [
-        0
-    ], 0, [
-        input,
-        lagTimeU,
-        lagTimeD
-    ]);
-}
-function Lag2(input, lagTime) {
-    return makeUgen('Lag2', 1, [
-        0
-    ], 0, [
-        input,
-        lagTime
-    ]);
-}
-function Lag3(input, lagTime) {
-    return makeUgen('Lag3', 1, [
-        0
-    ], 0, [
-        input,
-        lagTime
-    ]);
-}
-function Lag3Ud(input, lagTimeU, lagTimeD) {
-    return makeUgen('Lag3UD', 1, [
-        0
-    ], 0, [
-        input,
-        lagTimeU,
-        lagTimeD
-    ]);
-}
-function Latch(input, trig) {
-    return makeUgen('Latch', 1, [
-        0
-    ], 0, [
-        input,
-        trig
-    ]);
-}
-function LatoocarfianC(freq, a, b, c, d, xi, yi) {
-    return makeUgen('LatoocarfianC', 1, 2, 0, [
-        freq,
-        a,
-        b,
-        c,
-        d,
-        xi,
-        yi
-    ]);
-}
-function LeakDc(input, coef) {
-    return makeUgen('LeakDC', 1, [
-        0
-    ], 0, [
-        input,
-        coef
     ]);
 }
 function Limiter(input, level, dur) {
@@ -2879,6 +2876,14 @@ function LorenzL(freq, s, r, b, h, xi, yi, zi) {
         xi,
         yi,
         zi
+    ]);
+}
+function Lpf(input, freq) {
+    return makeUgen('LPF', 1, [
+        0
+    ], 0, [
+        input,
+        freq
     ]);
 }
 function Lpz1(input) {
@@ -3041,13 +3046,6 @@ function PeakFollower(input, decay) {
         decay
     ]);
 }
-function Perlin3(x, y, z) {
-    return makeUgen('Perlin3', 1, 2, 0, [
-        x,
-        y,
-        z
-    ]);
-}
 function Phasor(trig, rate, start, end, resetPos) {
     return makeUgen('Phasor', 1, 2, 0, [
         trig,
@@ -3144,15 +3142,6 @@ function PvRandComb(buffer, wipe, trig) {
         trig
     ]);
 }
-function QuadL(freq, a, b, c, xi) {
-    return makeUgen('QuadL', 1, 2, 0, [
-        freq,
-        a,
-        b,
-        c,
-        xi
-    ]);
-}
 function QuadC(freq, a, b, c, xi) {
     return makeUgen('QuadC', 1, 2, 0, [
         freq,
@@ -3162,22 +3151,13 @@ function QuadC(freq, a, b, c, xi) {
         xi
     ]);
 }
-function Rhpf(input, freq, rq) {
-    return makeUgen('RHPF', 1, [
-        0
-    ], 0, [
-        input,
+function QuadL(freq, a, b, c, xi) {
+    return makeUgen('QuadL', 1, 2, 0, [
         freq,
-        rq
-    ]);
-}
-function Rlpf(input, freq, rq) {
-    return makeUgen('RLPF', 1, [
-        0
-    ], 0, [
-        input,
-        freq,
-        rq
+        a,
+        b,
+        c,
+        xi
     ]);
 }
 function Rand(lo, hi) {
@@ -3214,6 +3194,15 @@ function Resonz(input, freq, bwr) {
         bwr
     ]);
 }
+function Rhpf(input, freq, rq) {
+    return makeUgen('RHPF', 1, [
+        0
+    ], 0, [
+        input,
+        freq,
+        rq
+    ]);
+}
 function Ringz(input, freq, decaytime) {
     return makeUgen('Ringz', 1, [
         0
@@ -3221,6 +3210,25 @@ function Ringz(input, freq, decaytime) {
         input,
         freq,
         decaytime
+    ]);
+}
+function Rlpf(input, freq, rq) {
+    return makeUgen('RLPF', 1, [
+        0
+    ], 0, [
+        input,
+        freq,
+        rq
+    ]);
+}
+function Rotate2(x, y, pos) {
+    return makeUgen('Rotate2', 2, [
+        0,
+        1
+    ], 0, [
+        x,
+        y,
+        pos
     ]);
 }
 function RunningMax(input, trig) {
@@ -3237,16 +3245,6 @@ function RunningSum(input, numsamp) {
     ], 0, [
         input,
         numsamp
-    ]);
-}
-function Rotate2(x, y, pos) {
-    return makeUgen('Rotate2', 2, [
-        0,
-        1
-    ], 0, [
-        x,
-        y,
-        pos
     ]);
 }
 function SampleDur() {
@@ -3305,13 +3303,6 @@ function SinOsc(freq, phase) {
     return makeUgen('SinOsc', 1, 2, 0, [
         freq,
         phase
-    ]);
-}
-function SinGrain(trigger, dur, freq) {
-    return makeUgen('SinGrain', 1, 2, 0, [
-        trigger,
-        dur,
-        freq
     ]);
 }
 function SinOscFb(freq, feedback) {
@@ -3506,18 +3497,6 @@ function VarSaw(freq, iphase, width) {
         width
     ]);
 }
-function VbJonVerb(input, decay, damping, inputbw, erfl, tail) {
-    return makeUgen('VBJonVerb', 2, [
-        0
-    ], 0, [
-        input,
-        decay,
-        damping,
-        inputbw,
-        erfl,
-        tail
-    ]);
-}
 function Vibrato(freq, rate, depth, delay, onset, rateVariation, depthVariation, iphase, trig) {
     return makeUgen('Vibrato', 1, 2, 0, [
         freq,
@@ -3541,14 +3520,6 @@ function Warp1(numChan, bufnum, pointer, freqScale, windowSize, envbufnum, overl
         overlaps,
         windowRandRatio,
         interp
-    ]);
-}
-function WaveLoss(input, drop, outof, mode) {
-    return makeUgen('WaveLoss', 1, 2, 0, [
-        input,
-        drop,
-        outof,
-        mode
     ]);
 }
 function WhiteNoise() {
@@ -3597,13 +3568,122 @@ function ZeroCrossing(input) {
         input
     ]);
 }
-function MoogLadder(input, ffreq, res) {
-    return makeUgen('MoogLadder', 1, [
+function AnalogFoldOsc(freq, amp) {
+    return makeUgen('AnalogFoldOsc', 1, 2, 0, [
+        freq,
+        amp
+    ]);
+}
+function Bezier(haltAfter, dx, freq, phase, param) {
+    return makeUgen('Bezier', 1, 2, 0, arrayConcat([
+        haltAfter,
+        dx,
+        freq,
+        phase
+    ], asArray(param)));
+}
+function CrossoverDistortion(input, amp, smooth) {
+    return makeUgen('CrossoverDistortion', 1, [
         0
     ], 0, [
         input,
-        ffreq,
-        res
+        amp,
+        smooth
+    ]);
+}
+function Dfm1(input, freq, res, inputgain, type, noiselevel) {
+    return makeUgen('DFM1', 1, [
+        0
+    ], 0, [
+        input,
+        freq,
+        res,
+        inputgain,
+        type,
+        noiselevel
+    ]);
+}
+function DustRange(iotMin, iotMax) {
+    return makeUgen('DustRange', 1, 2, 0, [
+        iotMin,
+        iotMax
+    ]);
+}
+function DwgPluckedStiff(freq, amp, gate, pos, c1, c3, inp, release, fB) {
+    return makeUgen('DWGPluckedStiff', 1, 2, 0, [
+        freq,
+        amp,
+        gate,
+        pos,
+        c1,
+        c3,
+        inp,
+        release,
+        fB
+    ]);
+}
+function Dx7(bufnum, on, off, data, vc, mnn, vel, pw, mw, bc, fc) {
+    return makeUgen('Dx7', 1, 2, 0, [
+        bufnum,
+        on,
+        off,
+        data,
+        vc,
+        mnn,
+        vel,
+        pw,
+        mw,
+        bc,
+        fc
+    ]);
+}
+function Dx7Env(gate, data, r1, r2, r3, r4, l1, l2, l3, l4, ol) {
+    return makeUgen('Dx7Env', 1, 2, 0, [
+        gate,
+        data,
+        r1,
+        r2,
+        r3,
+        r4,
+        l1,
+        l2,
+        l3,
+        l4,
+        ol
+    ]);
+}
+function ExpRandN(numChan, lo, hi) {
+    return makeUgen('ExpRandN', numChan, 0, 0, [
+        lo,
+        hi
+    ]);
+}
+function Fm7(ctlMatrix, modMatrix) {
+    return makeUgen('FM7', 6, 2, 0, arrayConcat([], (asArray(ctlMatrix), asArray(modMatrix))));
+}
+function Freezer(bufnum, left, right, gain, increment, incrementOffset, incrementRandom, rightRandom, syncPhaseTrigger, randomizePhaseTrigger, numberOfLoops) {
+    return makeUgen('Freezer', 1, 2, 0, [
+        bufnum,
+        left,
+        right,
+        gain,
+        increment,
+        incrementOffset,
+        incrementRandom,
+        rightRandom,
+        syncPhaseTrigger,
+        randomizePhaseTrigger,
+        numberOfLoops
+    ]);
+}
+function Friction(input, friction, spring, damp, mass, beltmass) {
+    return makeUgen('Friction', 1, 2, 0, [
+        input,
+        friction,
+        spring,
+        damp,
+        mass,
+        beltmass
     ]);
 }
 function GreyholeRaw(in1, in2, damping, delaytime, diffusion, feedback, moddepth, modfreq, size) {
@@ -3622,23 +3702,18 @@ function GreyholeRaw(in1, in2, damping, delaytime, diffusion, feedback, moddepth
         size
     ]);
 }
-function CrossoverDistortion(input, amp, smooth) {
-    return makeUgen('CrossoverDistortion', 1, [
-        0
-    ], 0, [
-        input,
-        amp,
-        smooth
+function LfBrownNoise1(freq, dev, dist) {
+    return makeUgen('LFBrownNoise1', 1, 2, 0, [
+        freq,
+        dev,
+        dist
     ]);
 }
-function Friction(input, friction, spring, damp, mass, beltmass) {
-    return makeUgen('Friction', 1, 2, 0, [
-        input,
-        friction,
-        spring,
-        damp,
-        mass,
-        beltmass
+function LinRandN(numChan, lo, hi, minmax) {
+    return makeUgen('LinRandN', numChan, 0, 0, [
+        lo,
+        hi,
+        minmax
     ]);
 }
 function MembraneCircle(excitation, tension, loss) {
@@ -3646,14 +3721,6 @@ function MembraneCircle(excitation, tension, loss) {
         excitation,
         tension,
         loss
-    ]);
-}
-function Vosim(trig, freq, nCycles, decay) {
-    return makeUgen('VOSIM', 1, 2, 0, [
-        trig,
-        freq,
-        nCycles,
-        decay
     ]);
 }
 function MiBraids(pitch, timbre, color, model, trig, resamp, decim, bits, ws) {
@@ -3703,10 +3770,38 @@ function MiRings(input, trig, pit, struct, bright, damp, pos, model, poly, inter
         bypass
     ]);
 }
-function AnalogFoldOsc(freq, amp) {
-    return makeUgen('AnalogFoldOsc', 1, 2, 0, [
-        freq,
-        amp
+function MoogLadder(input, ffreq, res) {
+    return makeUgen('MoogLadder', 1, [
+        0
+    ], 0, [
+        input,
+        ffreq,
+        res
+    ]);
+}
+function ObxdFilter(input, cutoff, resonance, multimode, bandpass, fourpole) {
+    return makeUgen('ObxdFilter', 1, [
+        0
+    ], 0, [
+        input,
+        cutoff,
+        resonance,
+        multimode,
+        bandpass,
+        fourpole
+    ]);
+}
+function Perlin3(x, y, z) {
+    return makeUgen('Perlin3', 1, 2, 0, [
+        x,
+        y,
+        z
+    ]);
+}
+function RandN(numChan, lo, hi) {
+    return makeUgen('RandN', numChan, 0, 0, [
+        lo,
+        hi
     ]);
 }
 function Rcd(clock, rotate, reset, div, spread, auto, len, down, gates) {
@@ -3735,86 +3830,11 @@ function Scm(clock, bpm, rotate, slip, shuffle, skip, pw) {
         pw
     ]);
 }
-function DustRange(iotMin, iotMax) {
-    return makeUgen('DustRange', 1, 2, 0, [
-        iotMin,
-        iotMax
-    ]);
-}
-function ExpRandN(numChan, lo, hi) {
-    return makeUgen('ExpRandN', numChan, 0, 0, [
-        lo,
-        hi
-    ]);
-}
-function LinRandN(numChan, lo, hi, minmax) {
-    return makeUgen('LinRandN', numChan, 0, 0, [
-        lo,
-        hi,
-        minmax
-    ]);
-}
-function RandN(numChan, lo, hi) {
-    return makeUgen('RandN', numChan, 0, 0, [
-        lo,
-        hi
-    ]);
-}
-function TLinRand(lo, hi, minmax, trigger) {
-    return makeUgen('TLinRand', 1, 1, 0, [
-        lo,
-        hi,
-        minmax,
-        trigger
-    ]);
-}
-function TScramble(trigger, inputs) {
-    return makeUgen('TScramble', arrayLength(asArray(inputs)), [
-        0
-    ], 0, arrayConcat([
-        trigger
-    ], asArray(inputs)));
-}
-function Dx7(bufnum, on, off, data, vc, mnn, vel, pw, mw, bc, fc) {
-    return makeUgen('Dx7', 1, 2, 0, [
-        bufnum,
-        on,
-        off,
-        data,
-        vc,
-        mnn,
-        vel,
-        pw,
-        mw,
-        bc,
-        fc
-    ]);
-}
-function Dx7Env(gate, data, r1, r2, r3, r4, l1, l2, l3, l4, ol) {
-    return makeUgen('Dx7Env', 1, 2, 0, [
-        gate,
-        data,
-        r1,
-        r2,
-        r3,
-        r4,
-        l1,
-        l2,
-        l3,
-        l4,
-        ol
-    ]);
-}
-function ObxdFilter(input, cutoff, resonance, multimode, bandpass, fourpole) {
-    return makeUgen('ObxdFilter', 1, [
-        0
-    ], 0, [
-        input,
-        cutoff,
-        resonance,
-        multimode,
-        bandpass,
-        fourpole
+function SinGrain(trigger, dur, freq) {
+    return makeUgen('SinGrain', 1, 2, 0, [
+        trigger,
+        dur,
+        freq
     ]);
 }
 function SvfBp(input, freq, q) {
@@ -3840,27 +3860,47 @@ function SvfLp(input, freq, q) {
         q
     ]);
 }
-function Bezier(haltAfter, dx, freq, phase, param) {
-    return makeUgen('Bezier', 1, 2, 0, arrayConcat([
-        haltAfter,
-        dx,
-        freq,
-        phase
-    ], asArray(param)));
+function TLinRand(lo, hi, minmax, trigger) {
+    return makeUgen('TLinRand', 1, 1, 0, [
+        lo,
+        hi,
+        minmax,
+        trigger
+    ]);
 }
-function Freezer(bufnum, left, right, gain, increment, incrementOffset, incrementRandom, rightRandom, syncPhaseTrigger, randomizePhaseTrigger, numberOfLoops) {
-    return makeUgen('Freezer', 1, 2, 0, [
-        bufnum,
-        left,
-        right,
-        gain,
-        increment,
-        incrementOffset,
-        incrementRandom,
-        rightRandom,
-        syncPhaseTrigger,
-        randomizePhaseTrigger,
-        numberOfLoops
+function TScramble(trigger, inputs) {
+    return makeUgen('TScramble', arrayLength(asArray(inputs)), [
+        0
+    ], 0, arrayConcat([
+        trigger
+    ], asArray(inputs)));
+}
+function VbJonVerb(input, decay, damping, inputbw, erfl, tail) {
+    return makeUgen('VBJonVerb', 2, [
+        0
+    ], 0, [
+        input,
+        decay,
+        damping,
+        inputbw,
+        erfl,
+        tail
+    ]);
+}
+function Vosim(trig, freq, nCycles, decay) {
+    return makeUgen('VOSIM', 1, 2, 0, [
+        trig,
+        freq,
+        nCycles,
+        decay
+    ]);
+}
+function WaveLoss(input, drop, outof, mode) {
+    return makeUgen('WaveLoss', 1, 2, 0, [
+        input,
+        drop,
+        outof,
+        mode
     ]);
 }
 function Add(a, b) {
@@ -4189,8 +4229,8 @@ export { BPeakEq as BPeakEq };
 export { Bpf as Bpf };
 export { Bpz2 as Bpz2 };
 export { Brf as Brf };
-export { Brz2 as Brz2 };
 export { BrownNoise as BrownNoise };
+export { Brz2 as Brz2 };
 export { BufDur as BufDur };
 export { BufFrames as BufFrames };
 export { BufRateScale as BufRateScale };
@@ -4211,6 +4251,7 @@ export { Convolution as Convolution };
 export { Crackle as Crackle };
 export { CuspL as CuspL };
 export { CuspN as CuspN };
+export { Dbrown as Dbrown };
 export { Dbufrd as Dbufrd };
 export { Dbufwr as Dbufwr };
 export { Dc as Dc };
@@ -4224,31 +4265,34 @@ export { DelayL as DelayL };
 export { DelayN as DelayN };
 export { Demand as Demand };
 export { DetectSilence as DetectSilence };
-export { Dfm1 as Dfm1 };
+export { Dibrown as Dibrown };
 export { Diwhite as Diwhite };
 export { Drand as Drand };
 export { Dseq as Dseq };
+export { Dser as Dser };
 export { Dseries as Dseries };
 export { Dshuf as Dshuf };
+export { Dswitch as Dswitch };
+export { Dswitch1 as Dswitch1 };
 export { Dust as Dust };
 export { Dust2 as Dust2 };
 export { Duty as Duty };
-export { DwgPluckedStiff as DwgPluckedStiff };
 export { Dwhite as Dwhite };
+export { Dwrand as Dwrand };
 export { Dxrand as Dxrand };
 export { EnvGen as EnvGen };
 export { ExpRand as ExpRand };
-export { FbSineL as FbSineL };
 export { FbSineC as FbSineC };
+export { FbSineL as FbSineL };
 export { Fft as Fft };
 export { Fold as Fold };
 export { Formant as Formant };
 export { Formlet as Formlet };
 export { Fos as Fos };
-export { FreqShift as FreqShift };
-export { FSinOsc as FSinOsc };
 export { FreeVerb as FreeVerb };
 export { FreeVerb2 as FreeVerb2 };
+export { FreqShift as FreqShift };
+export { FSinOsc as FSinOsc };
 export { Gate as Gate };
 export { Gendy1 as Gendy1 };
 export { GrainBuf as GrainBuf };
@@ -4270,12 +4314,19 @@ export { Index as Index };
 export { IndexInBetween as IndexInBetween };
 export { InFeedback as InFeedback };
 export { InRange as InRange };
-export { IRand as IRand };
 export { Integrator as Integrator };
+export { IRand as IRand };
 export { K2A as K2A };
 export { Klang as Klang };
 export { Klank as Klank };
-export { LfBrownNoise1 as LfBrownNoise1 };
+export { Lag as Lag };
+export { Lag2 as Lag2 };
+export { Lag3 as Lag3 };
+export { Lag3Ud as Lag3Ud };
+export { LagUd as LagUd };
+export { Latch as Latch };
+export { LatoocarfianC as LatoocarfianC };
+export { LeakDc as LeakDc };
 export { LfClipNoise as LfClipNoise };
 export { LfCub as LfCub };
 export { LfdNoise1 as LfdNoise1 };
@@ -4288,15 +4339,6 @@ export { LfPar as LfPar };
 export { LfPulse as LfPulse };
 export { LfSaw as LfSaw };
 export { LfTri as LfTri };
-export { Lpf as Lpf };
-export { Lag as Lag };
-export { LagUd as LagUd };
-export { Lag2 as Lag2 };
-export { Lag3 as Lag3 };
-export { Lag3Ud as Lag3Ud };
-export { Latch as Latch };
-export { LatoocarfianC as LatoocarfianC };
-export { LeakDc as LeakDc };
 export { Limiter as Limiter };
 export { LinCongC as LinCongC };
 export { Line as Line };
@@ -4310,6 +4352,7 @@ export { LocalIn as LocalIn };
 export { LocalOut as LocalOut };
 export { Logistic as Logistic };
 export { LorenzL as LorenzL };
+export { Lpf as Lpf };
 export { Lpz1 as Lpz1 };
 export { Lpz2 as Lpz2 };
 export { MantissaMask as MantissaMask };
@@ -4330,7 +4373,6 @@ export { Pan2 as Pan2 };
 export { PanAz as PanAz };
 export { PanB as PanB };
 export { PeakFollower as PeakFollower };
-export { Perlin3 as Perlin3 };
 export { Phasor as Phasor };
 export { PinkNoise as PinkNoise };
 export { Pitch as Pitch };
@@ -4342,18 +4384,18 @@ export { PulseCount as PulseCount };
 export { PulseDivider as PulseDivider };
 export { PvDiffuser as PvDiffuser };
 export { PvRandComb as PvRandComb };
-export { QuadL as QuadL };
 export { QuadC as QuadC };
-export { Rhpf as Rhpf };
-export { Rlpf as Rlpf };
+export { QuadL as QuadL };
 export { Rand as Rand };
 export { RecordBuf as RecordBuf };
 export { ReplaceOut as ReplaceOut };
 export { Resonz as Resonz };
+export { Rhpf as Rhpf };
 export { Ringz as Ringz };
+export { Rlpf as Rlpf };
+export { Rotate2 as Rotate2 };
 export { RunningMax as RunningMax };
 export { RunningSum as RunningSum };
-export { Rotate2 as Rotate2 };
 export { SampleDur as SampleDur };
 export { SampleRate as SampleRate };
 export { Sanitize as Sanitize };
@@ -4363,7 +4405,6 @@ export { Select as Select };
 export { SetBuf as SetBuf };
 export { SetResetFf as SetResetFf };
 export { SinOsc as SinOsc };
-export { SinGrain as SinGrain };
 export { SinOscFb as SinOscFb };
 export { Slew as Slew };
 export { Slope as Slope };
@@ -4387,42 +4428,48 @@ export { Trig1 as Trig1 };
 export { TwoPole as TwoPole };
 export { TwoZero as TwoZero };
 export { VarSaw as VarSaw };
-export { VbJonVerb as VbJonVerb };
 export { Vibrato as Vibrato };
 export { Warp1 as Warp1 };
-export { WaveLoss as WaveLoss };
 export { WhiteNoise as WhiteNoise };
 export { Wrap as Wrap };
 export { WrapIndex as WrapIndex };
 export { XFade2 as XFade2 };
 export { XLine as XLine };
 export { ZeroCrossing as ZeroCrossing };
-export { MoogLadder as MoogLadder };
-export { GreyholeRaw as GreyholeRaw };
+export { AnalogFoldOsc as AnalogFoldOsc };
+export { Bezier as Bezier };
 export { CrossoverDistortion as CrossoverDistortion };
+export { Dfm1 as Dfm1 };
+export { DustRange as DustRange };
+export { DwgPluckedStiff as DwgPluckedStiff };
+export { Dx7 as Dx7 };
+export { Dx7Env as Dx7Env };
+export { ExpRandN as ExpRandN };
+export { Fm7 as Fm7 };
+export { Freezer as Freezer };
 export { Friction as Friction };
+export { GreyholeRaw as GreyholeRaw };
+export { LfBrownNoise1 as LfBrownNoise1 };
+export { LinRandN as LinRandN };
 export { MembraneCircle as MembraneCircle };
-export { Vosim as Vosim };
 export { MiBraids as MiBraids };
 export { MiClouds as MiClouds };
 export { MiRings as MiRings };
-export { AnalogFoldOsc as AnalogFoldOsc };
+export { MoogLadder as MoogLadder };
+export { ObxdFilter as ObxdFilter };
+export { Perlin3 as Perlin3 };
+export { RandN as RandN };
 export { Rcd as Rcd };
 export { Scm as Scm };
-export { DustRange as DustRange };
-export { ExpRandN as ExpRandN };
-export { LinRandN as LinRandN };
-export { RandN as RandN };
-export { TLinRand as TLinRand };
-export { TScramble as TScramble };
-export { Dx7 as Dx7 };
-export { Dx7Env as Dx7Env };
-export { ObxdFilter as ObxdFilter };
+export { SinGrain as SinGrain };
 export { SvfBp as SvfBp };
 export { SvfHp as SvfHp };
 export { SvfLp as SvfLp };
-export { Bezier as Bezier };
-export { Freezer as Freezer };
+export { TLinRand as TLinRand };
+export { TScramble as TScramble };
+export { VbJonVerb as VbJonVerb };
+export { Vosim as Vosim };
+export { WaveLoss as WaveLoss };
 export { Add as Add };
 export { Sub as Sub };
 export { Mul as Mul };
@@ -4736,9 +4783,6 @@ function DmdFor(dur, reset, level) {
 function TDmdFor(dur, reset, level) {
     return TDuty(dur, reset, 0, level, 0);
 }
-function DmdOn(trig, reset, demandUgens) {
-    return Demand(trig, reset, demandUgens);
-}
 function Ln(start, end, dur) {
     return Line(start, end, dur, 0);
 }
@@ -4826,7 +4870,7 @@ function SelectX(which, array) {
     return XFade2(Select(RoundTo(which, 2), array), Select(Add(Trunc(which, 2), 1), array), Fold2(Sub(Mul(which, 2), 1), 1), 1);
 }
 function UnitCps(a) {
-    return MidiCps(Mul(a, 127));
+    return MidiCps(Mul(a, 100));
 }
 function ControlIn(numChan, bus) {
     return kr(In(numChan, bus));
@@ -4930,11 +4974,6 @@ export { PmOsc as PmOsc };
 export { XLn as XLn };
 export { DmdFor as DmdFor };
 export { TDmdFor as TDmdFor };
-export { DmdOn as DmdOn };
-export { Dseq as Seq };
-export { Dseries as Ser };
-export { Dshuf as Shuf };
-export { Drand as Choose };
 export { Ln as Ln };
 export { TLine as TLine };
 export { TxLine as TxLine };

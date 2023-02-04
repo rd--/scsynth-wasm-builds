@@ -8556,125 +8556,129 @@ var extras = {
 const slGrammar = ohm.grammar(String.raw`
 Sl {
 
-    TopLevel = LibraryExpression+ | Program
-    LibraryExpression = ClassExpression | TraitExpression
-    ClassExpression = ClassExtension | ClassListExtension | ClassDefinition
-    ClassExtension = "+" identifier "{" (methodName Block)* "}"
-    ClassListExtension = "+" "[" NonemptyListOf<identifier, ","> "]" "{" (methodName Block)* "}"
-    ClassDefinition = identifier TraitList? "{" Temporaries? (methodName Block)* "}"
-    TraitList = ":" "[" NonemptyListOf<identifier, ","> "]"
-    TraitExpression = TraitExtension | TraitDefinition
-    TraitExtension = "+" "@" identifier "{" (methodName Block)* "}"
-    TraitDefinition = "@" identifier "{" (methodName Block)* "}"
-    Program = Temporaries? ExpressionSequence
-    Temporaries = TemporariesWithInitializers | TemporariesWithoutInitializers | TemporariesVarSyntax+
-    TemporariesWithInitializers = "|" NonemptyListOf<TemporaryWithInitializer, ","> ";" "|"
-    TemporaryWithInitializer =
-      TemporaryWithBlockLiteralInitializer |
-      TemporaryWithExpressionInitializer |
-      TemporaryWithDictionaryInitializer |
-      TemporaryWithArrayInitializer
-    TemporaryWithBlockLiteralInitializer = identifier "=" Block ~("." | binaryOperator)
-    TemporaryWithExpressionInitializer = identifier "=" Expression
-    TemporaryWithDictionaryInitializer = "("  NonemptyListOf<identifier, ","> ")" "=" Expression
-    TemporaryWithArrayInitializer = "["  NonemptyListOf<identifier, ","> "]" "=" Expression
-    TemporariesWithoutInitializers = "|" identifier+ "|"
-    TemporariesVarSyntax = "var" NonemptyListOf<(TemporaryWithInitializer | identifier), ","> ";"
+	TopLevel = LibraryExpression+ | Program
+	LibraryExpression = ClassExpression | TraitExpression
+	ClassExpression = ClassExtension | ClassListExtension | ClassDefinition
+	ClassExtension = "+" identifier "{" (methodName Block)* "}"
+	ClassListExtension = "+" "[" NonemptyListOf<identifier, ","> "]" "{" (methodName Block)* "}"
+	ClassDefinition = identifier TraitList? "{" Temporaries? (methodName Block)* "}"
+	TraitList = ":" "[" NonemptyListOf<identifier, ","> "]"
+	TraitExpression = TraitExtension | TraitDefinition
+	TraitExtension = "+" "@" identifier "{" (methodName Block)* "}"
+	TraitDefinition = "@" identifier "{" (methodName Block)* "}"
+	Program = Temporaries? ExpressionSequence
+	Temporaries = TemporariesWithInitializers | TemporariesWithoutInitializers | TemporariesVarSyntax+
+	TemporariesWithInitializers = "|" NonemptyListOf<TemporaryWithInitializer, ","> ";" "|"
+	TemporaryWithInitializer =
+		TemporaryWithBlockLiteralInitializer |
+		TemporaryWithExpressionInitializer |
+		TemporaryWithDictionaryInitializer |
+		TemporaryWithArrayInitializer
+	TemporaryWithBlockLiteralInitializer = identifier "=" Block ~("." | binaryOperator)
+	TemporaryWithExpressionInitializer = identifier "=" Expression
+	TemporaryWithDictionaryInitializer = "("  NonemptyListOf<identifier, ","> ")" "=" Expression
+	TemporaryWithArrayInitializer = "["  NonemptyListOf<identifier, ","> "]" "=" Expression
+	TemporariesWithoutInitializers = "|" identifier+ "|"
+	TemporariesVarSyntax = "var" NonemptyListOf<(TemporaryWithInitializer | identifier), ","> ";"
 
-    ExpressionSequence = ListOf<Expression, ";">
-    Expression = Assignment | BinaryExpression | Primary
-    Assignment = identifier ":=" Expression
-    BinaryExpression = Expression (binaryOperator Primary)+
+	ExpressionSequence = ListOf<Expression, ";">
+	Expression = Assignment | BinaryExpression | Primary
+	Assignment = identifier ":=" Expression
+	BinaryExpression = Expression (binaryOperator Primary)+
 
-    Primary
-      = AtPutSyntax
-      | AtPutQuotedSyntax
-      | AtSyntax
-      | AtQuotedSyntax
-      | ValueApplySyntax
-      | DotExpressionWithTrailingClosuresSyntax
-      | DotExpressionWithTrailingDictionariesSyntax
-      | DotExpressionWithAssignmentSyntax
-      | DotExpression
-      | ImplicitDictionaryAtPutSyntax
-      | ImplicitDictionaryAtSyntax
-      | Block
-      | ApplyWithTrailingDictionariesSyntax
-      | ApplyWithTrailingClosuresSyntax
-      | Apply
-      | reservedIdentifier
-      | identifier
-      | literal
-      | ParenthesisedExpression
-      | DictionaryExpression
-      | ArrayExpression
-      | ArrayRangeSyntax
-      | ArrayRangeThenSyntax
-      | IntervalSyntax
-      | IntervalThenSyntax
+	Primary
+		= AtPutSyntax
+		| AtPutQuotedSyntax
+		| AtPutDelegateSyntax
+		| AtSyntax
+		| AtQuotedSyntax
+		| ValueApply
+		| DotExpressionWithTrailingClosuresSyntax
+		| DotExpressionWithTrailingDictionariesSyntax
+		| DotExpressionWithAssignmentSyntax
+		| DotExpression
+		| ImplicitDictionaryAtPutSyntax
+		| ImplicitDictionaryAtSyntax
+		| Block
+		| ApplyWithTrailingDictionariesSyntax
+		| ApplyWithTrailingClosuresSyntax
+		| ApplySyntax
+		| MessageSendSyntax
+		| reservedIdentifier
+		| identifier
+		| literal
+		| ParenthesisedExpression
+		| DictionaryExpression
+		| ArrayExpression
+		| ArrayRangeSyntax
+		| ArrayRangeThenSyntax
+		| IntervalSyntax
+		| IntervalThenSyntax
 
-    AtPutSyntax = Primary "[" Expression "]" ":=" Expression
-    AtPutQuotedSyntax = Primary "::" identifier ":=" Expression
-    AtSyntax = Primary "[" Expression "]"
-    AtQuotedSyntax = Primary "::" identifier
-    ValueApplySyntax = Primary "." ParameterList
-    NonEmptyParameterList =  "(" NonemptyListOf<Expression, ","> ")"
+	AtPutSyntax = Primary "[" Expression "]" ":=" Expression
+	AtPutQuotedSyntax = Primary "::" identifier ":=" Expression
+	AtSyntax = Primary "[" Expression "]"
+	AtQuotedSyntax = Primary "::" identifier
+	AtPutDelegateSyntax = Primary ":." identifier ":=" Expression
+	MessageSendSyntax = Primary ":." identifier NonEmptyParameterList?
+	ValueApply = Primary "." ParameterList
+	ParameterList =  "(" ListOf<Expression, ","> ")"
+	NonEmptyParameterList =  "(" NonemptyListOf<Expression, ","> ")"
 
-    DotExpressionWithTrailingClosuresSyntax = Primary "." identifier NonEmptyParameterList? Block+
-    DotExpressionWithTrailingDictionariesSyntax = Primary "." identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
-    DotExpressionWithAssignmentSyntax = Primary "." identifier ":=" Expression
-    DotExpression = Primary ("." identifier ~("{" | ":=") NonEmptyParameterList?)+
+	DotExpressionWithTrailingClosuresSyntax = Primary "." identifier NonEmptyParameterList? Block+
+	DotExpressionWithTrailingDictionariesSyntax = Primary "." identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
+	DotExpressionWithAssignmentSyntax = Primary "." identifier ":=" Expression
+	DotExpression = Primary ("." identifier ~("{" | ":=") NonEmptyParameterList?)+
 
-    ImplicitDictionaryAtPutSyntax = "::" identifier ":=" Expression
-    ImplicitDictionaryAtSyntax = "::" identifier
+	ImplicitDictionaryAtPutSyntax = "::" identifier ":=" Expression
+	ImplicitDictionaryAtSyntax = "::" identifier
 
-    Block = "{" BlockBody "}"
-    BlockBody = Arguments? Temporaries? Primitive? Statements?
-    Arguments = ArgumentName+ "|"
-    ArgumentName = ":" identifier
-    Primitive = "<primitive:" primitiveCharacter* ">"
-    Statements = NonFinalExpression | FinalExpression
-    NonFinalExpression = Expression ";" Statements
-    FinalExpression = Expression ";"?
+	Block = "{" BlockBody "}"
+	BlockBody = Arguments? Temporaries? Primitive? Statements?
+	Arguments = ArgumentName+ "|"
+	ArgumentName = ":" identifier
+	Primitive = "<primitive:" primitiveCharacter* ">"
+	Statements = NonFinalExpression | FinalExpression
+	NonFinalExpression = Expression ";" Statements
+	FinalExpression = Expression ";"?
 
-    ApplyWithTrailingClosuresSyntax = identifier NonEmptyParameterList? Block+
-    ApplyWithTrailingDictionariesSyntax = identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
-    Apply = identifier ParameterList
-    ParameterList =  "(" ListOf<Expression, ","> ")"
-    ParenthesisedExpression = "(" Expression ")"
-    NonEmptyDictionaryExpression = "(" NonemptyListOf<AssociationExpression, ","> ")"
-    DictionaryExpression = "(" ListOf<AssociationExpression, ","> ")"
-    AssociationExpression = identifier ":" Expression
-    ArrayExpression = "[" ListOf<Expression, ","> "]"
-    ArrayRangeSyntax = "[" Expression ".." Expression "]"
-    ArrayRangeThenSyntax = "[" Expression "," Expression ".." Expression "]"
-    IntervalSyntax = "(" Expression ".." Expression ")"
-    IntervalThenSyntax = "(" Expression "," Expression ".." Expression ")"
+	ApplyWithTrailingClosuresSyntax = identifier NonEmptyParameterList? Block+
+	ApplyWithTrailingDictionariesSyntax = identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
+	ApplySyntax = identifier ParameterList
+	ParenthesisedExpression = "(" Expression ")"
+	NonEmptyDictionaryExpression = "(" NonemptyListOf<AssociationExpression, ","> ")"
+	DictionaryExpression = "(" ListOf<AssociationExpression, ","> ")"
+	AssociationExpression = identifier ":" Expression
+	ArrayExpression = "[" ListOf<Expression, ","> "]"
+	ArrayRangeSyntax = "[" Expression ".." Expression "]"
+	ArrayRangeThenSyntax = "[" Expression "," Expression ".." Expression "]"
+	IntervalSyntax = "(" Expression ".." Expression ")"
+	IntervalThenSyntax = "(" Expression "," Expression ".." Expression ")"
 
-    methodName = identifier | binaryOperator
-    identifier = letter letterOrDigit* (":/" digit+)?
-    letterOrDigit = letter | digit
-    reservedIdentifier = "nil" | "true" | "false"
-    binaryOperator = binaryChar+
-    binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$"
+	methodName = identifier | binaryOperator
+	identifier = letter letterOrDigit* (":/" digit+)?
+	letterOrDigit = letter | digit
+	reservedIdentifier = "nil" | "true" | "false"
+	binaryOperator = binaryChar+
+	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$"
 
-    literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
-    numberLiteral = floatLiteral | integerLiteral
-    floatLiteral = "-"? digit+ "." digit+
-    integerLiteral = "-"? digit+
-    singleQuotedStringLiteral = "\'" (~"\'" sourceCharacter)* "\'"
-    doubleQuotedStringLiteral = "\"" (~"\"" sourceCharacter)* "\""
-    backtickQuotedStringLiteral = backtickCharacter (~backtickCharacter sourceCharacter)* backtickCharacter
-    backtickCharacter = "${String.fromCodePoint(96)}"
-    sourceCharacter = any
+	literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
+	numberLiteral = floatLiteral | integerLiteral
+	floatLiteral = "-"? digit+ "." digit+
+	integerLiteral = "-"? digit+
+	singleQuotedStringLiteral = "\'" (~"\'" sourceCharacter)* "\'"
+	doubleQuotedStringLiteral = "\"" (~"\"" sourceCharacter)* "\""
+	backtickQuotedStringLiteral = backtickCharacter (~backtickCharacter sourceCharacter)* backtickCharacter
+	backtickCharacter = "${String.fromCodePoint(96)}"
+	sourceCharacter = any
 
-    primitiveCharacter = ~">" sourceCharacter
+	primitiveCharacter = ~">" sourceCharacter
 
-    comment = multiLineMlComment | singleLineLispComment
-    multiLineMlComment = "(*" (~"*)" sourceCharacter)* "*)"
-    singleLineLispComment = ";;" (~lineTerminator sourceCharacter)*
-    lineTerminator = "\n" | "\r"
-    space += comment
+	comment = multiLineMlComment | singleLineLispComment
+	multiLineMlComment = "(*" (~"*)" sourceCharacter)* "*)"
+	singleLineLispComment = ";;" (~lineTerminator sourceCharacter)*
+	lineTerminator = "\n" | "\r"
+	space += comment
 
 }
 `);
@@ -8791,13 +8795,19 @@ const asJs = {
     AtPutQuotedSyntax (c, _c, k, _e, v) {
         return `_${genName('atPut', 3)}(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
     },
+    AtPutDelegateSyntax (c, _d, k, _e, v) {
+        return `_${genName('atPutDelegateTo', 4)}(${c.asJs}, '${k.sourceString}', ${v.asJs}, 'parent')`;
+    },
     AtSyntax (c, _l, k, _r) {
         return `_${genName('at', 2)}(${c.asJs}, ${k.asJs})`;
     },
     AtQuotedSyntax (c, _c, k) {
         return `_${genName('at', 2)}(${c.asJs}, '${k.sourceString}')`;
     },
-    ValueApplySyntax (p, _d, a) {
+    MessageSendSyntax (d, _o, k, a) {
+        return `_${genName('messageSend', 4)}(${d.asJs}, '${k.sourceString}', 'parent', [${a.children.map((c)=>c.asJs)}])`;
+    },
+    ValueApply (p, _d, a) {
         return `${p.asJs}(${a.asJs})`;
     },
     NonEmptyParameterList (_l, sq, _r) {
@@ -8880,7 +8890,7 @@ const asJs = {
         const name = `${genName(rcv.asJs, arg.arityOf + tc.children.length)}`;
         return `${name}(...[${opt === '' ? '' : opt + ', '} ${commaList(tc.children)}])`;
     },
-    Apply (rcv, arg) {
+    ApplySyntax (rcv, arg) {
         return `${genName(rcv.asJs, arg.arityOf)}(...[${arg.asJs}])`;
     },
     ParameterList (_l, sq, _r) {
@@ -9147,7 +9157,7 @@ function isStringDictionary(anObject) {
     return c === undefined || c.name === 'Object';
 }
 function objectType(anObject) {
-    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'IdentityDictionary' : anObject instanceof Set ? 'IdentitySet' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject.type || (isStringDictionary(anObject) ? 'StringDictionary' : anObject.constructor.name);
+    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'IdentityDictionary' : anObject instanceof Set ? 'IdentitySet' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject._type || (isStringDictionary(anObject) ? 'StringDictionary' : anObject.constructor.name);
 }
 function typeOf(anObject) {
     if (anObject === null || anObject === undefined) {
@@ -9369,7 +9379,7 @@ function addMethod(typeName, methodName, arity, procedure, sourceCode) {
 }
 function addType(typeName, traitList, slotNames) {
     const slots = slotNames.map((each)=>`${each}: ${each}`).join(', ');
-    const defType = slotNames.length === 0 ? '' : `extendTraitWithMethod('Object', 'new${typeName}', ${slotNames.length}, function(${slotNames.join(', ')}) { return {type: '${typeName}', ${slots} }; }, '<primitive>')`;
+    const defType = slotNames.length === 0 ? '' : `extendTraitWithMethod('Object', 'new${typeName}', ${slotNames.length}, function(${slotNames.join(', ')}) { return {_type: '${typeName}', ${slots} }; }, '<primitive>')`;
     const defPredicateFalse = `extendTraitWithMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive>')`;
     const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive>')`;
     const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive>');`).join('; ');
