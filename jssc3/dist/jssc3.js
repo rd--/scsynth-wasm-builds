@@ -1510,6 +1510,23 @@ export { binaryOperators as binaryOperators };
 export { unaryOperatorName as unaryOperatorName };
 export { binaryOperatorName as binaryOperatorName };
 export { operatorNameTable as operatorNameTable };
+class LocalControl {
+    name;
+    index;
+    defaultValue;
+    operatingRate;
+    isTriggered;
+    constructor(name, index, defaultValue){
+        this.name = name;
+        this.index = index;
+        this.defaultValue = defaultValue;
+        this.operatingRate = rateKr;
+        this.isTriggered = false;
+    }
+}
+function localControlCompare(i, j) {
+    return i.index - j.index;
+}
 const ugenCounter = counterNew();
 class ScUgen {
     name;
@@ -1519,6 +1536,7 @@ class ScUgen {
     id;
     inputArray;
     mrg;
+    localControl;
     constructor(name, numChan, rate, specialIndex, inputArray){
         this.name = name;
         this.numChan = numChan;
@@ -1527,7 +1545,43 @@ class ScUgen {
         this.id = ugenCounter();
         this.inputArray = inputArray;
         this.mrg = setNew();
+        this.localControl = null;
     }
+}
+function localControlInput(name, index, defaultValue) {
+    const scUgen = new ScUgen('LocalControl', 1, 1, 0, []);
+    scUgen.localControl = new LocalControl(name, index, defaultValue);
+    return new Ugen(scUgen, 0);
+}
+function localControls(dictionary) {
+    let index = 0;
+    const makeArrayed = function(name, defaultArray) {
+        let qualifier = 1;
+        const controlArray = [];
+        defaultArray.forEach(function(value) {
+            const qualifiedName = `${name}${qualifier}`;
+            controlArray.push(localControlInput(qualifiedName, index, value));
+            index += 1;
+            qualifier += 1;
+        });
+        return controlArray;
+    };
+    const answer = [];
+    for (const [name, defaultValue] of Object.entries(dictionary)){
+        if (Array.isArray(defaultValue)) {
+            answer.push([
+                name,
+                makeArrayed(name, defaultValue)
+            ]);
+        } else {
+            answer.push([
+                name,
+                localControlInput(name, index, defaultValue)
+            ]);
+            index += 1;
+        }
+    }
+    return new Map(answer);
 }
 function isScUgen(aValue) {
     return aValue instanceof ScUgen;
@@ -1546,6 +1600,9 @@ class Ugen {
         this.scUgen = scUgen;
         this.port = port;
     }
+}
+function isLocalControl(aUgen) {
+    return aUgen.scUgen.localControl !== null;
 }
 function isUgen(aValue) {
     return aValue instanceof Ugen;
@@ -1779,12 +1836,17 @@ function signalSize(aSignal) {
         return 1;
     }
 }
+export { LocalControl as LocalControl };
+export { localControlCompare as localControlCompare };
 export { ScUgen as ScUgen };
+export { localControlInput as localControlInput };
+export { localControls as localControls };
 export { isScUgen as isScUgen };
 export { isScUgenByName as isScUgenByName };
 export { scUgenCompare as scUgenCompare };
 export { nilPort as nilPort };
 export { Ugen as Ugen };
+export { isLocalControl as isLocalControl };
 export { isUgen as isUgen };
 export { isUgenByName as isUgenByName };
 export { isUgenInput as isUgenInput };
@@ -4960,6 +5022,17 @@ function BHiPass4(input, freq, rq) {
 function EqPan2(input, pos) {
     return Pan2(input, pos, 1);
 }
+function VarLag(input, time, curve) {
+    var env = new Env([
+        input,
+        input
+    ], [
+        time
+    ], curve, null, null, 0);
+    var timeChanged = typeof time === "number" ? 0 : Changed(time, 0);
+    var trig = Add(Add(Changed(input, 0), timeChanged), Impulse(0, 0));
+    return EnvGen(trig, 1, 0, 1, 0, envCoord(env));
+}
 export { wrapOut as wrapOut };
 export { Adsr as Adsr };
 export { Asr as Asr };
@@ -5011,6 +5084,7 @@ export { Changed as Changed };
 export { BLowPass4 as BLowPass4 };
 export { BHiPass4 as BHiPass4 };
 export { EqPan2 as EqPan2 };
+export { VarLag as VarLag };
 function PointerW(n) {
     return ControlIn(1, 15001 + n * 10);
 }
@@ -5058,7 +5132,7 @@ export { PointerMouseY as PointerMouseY };
 export { PointerMouseButton as PointerMouseButton };
 export { Pointer as Pointer };
 function KeyState(keycode, minval, maxval, lag) {
-    if (globalThis.globalScsynth.hasIoUgens) {
+    if (globalThis.globalScSynth.hasIoUgens) {
         return makeUgen('KeyState', 1, 1, 0, [
             keycode,
             minval,
@@ -5072,7 +5146,7 @@ function KeyState(keycode, minval, maxval, lag) {
     }
 }
 function MouseButton(minval, maxval, lag) {
-    if (globalThis.globalScsynth.hasIoUgens) {
+    if (globalThis.globalScSynth.hasIoUgens) {
         return makeUgen('MouseButton', 1, 1, 0, [
             minval,
             maxval,
@@ -5083,7 +5157,7 @@ function MouseButton(minval, maxval, lag) {
     }
 }
 function MouseX(minval, maxval, warp, lag) {
-    if (globalThis.globalScsynth.hasIoUgens) {
+    if (globalThis.globalScSynth.hasIoUgens) {
         return makeUgen('MouseX', 1, 1, 0, [
             minval,
             maxval,
@@ -5095,7 +5169,7 @@ function MouseX(minval, maxval, warp, lag) {
     }
 }
 function MouseY(minval, maxval, warp, lag) {
-    if (globalThis.globalScsynth.hasIoUgens) {
+    if (globalThis.globalScSynth.hasIoUgens) {
         return makeUgen('MouseY', 1, 1, 0, [
             minval,
             maxval,
@@ -5291,29 +5365,29 @@ export { m_status as m_status };
 export { m_dumpOsc as m_dumpOsc };
 export { m_notify as m_notify };
 export { s_new0 as s_new0 };
-function audiobuffer_to_scsynth_buffer(scsynth, audioBuffer, bufferNumber, numberOfChannels, bufferData) {
+function audiobuffer_to_scsynth_buffer(scSynth, audioBuffer, bufferNumber, numberOfChannels, bufferData) {
     const numberOfFrames = audioBuffer.length;
     const sampleRate = audioBuffer.sampleRate;
     const oscMessage = b_alloc_then_memcpy(bufferNumber, numberOfFrames, numberOfChannels, sampleRate, encodeFloat32Array(bufferData));
     console.log(`audiobuffer_to_scsynth_buffer: ${oscMessage}`);
-    scsynth.sendOsc(oscMessage);
+    scSynth.sendOsc(oscMessage);
 }
-function fetch_soundfile_to_scsynth_buffer(scsynth, soundFileUrl, numberOfChannels, bufferNumber) {
+function fetch_soundfile_to_scsynth_buffer(scSynth, soundFileUrl, numberOfChannels, bufferNumber) {
     fetch_soundfile_to_audiobuffer_and_then(soundFileUrl, function(audioBuffer) {
         if (audioBuffer.numberOfChannels === numberOfChannels) {
-            audiobuffer_to_scsynth_buffer(scsynth, audioBuffer, bufferNumber, numberOfChannels, audiobuffer_interleaved_channel_data(audioBuffer));
+            audiobuffer_to_scsynth_buffer(scSynth, audioBuffer, bufferNumber, numberOfChannels, audiobuffer_interleaved_channel_data(audioBuffer));
         } else {
             console.error('fetch_soundfile_to_scsynth_buffer: numberOfChannels mismatch');
         }
     });
 }
-function fetch_soundfile_channels_to_scsynth_buffers(scsynth, soundFileUrl, bufferNumbers, channelIndices) {
+function fetch_soundfile_channels_to_scsynth_buffers(scSynth, soundFileUrl, bufferNumbers, channelIndices) {
     fetch_soundfile_to_audiobuffer_and_then(soundFileUrl, function(audioBuffer) {
         for(let i = 0; i < bufferNumbers.length; i++){
             const bufferNumber = bufferNumbers[i];
             const channelIndex = channelIndices[i];
             if (channelIndex >= 1 && channelIndex <= audioBuffer.numberOfChannels) {
-                audiobuffer_to_scsynth_buffer(scsynth, audioBuffer, bufferNumber, 1, audioBuffer.getChannelData(channelIndex - 1));
+                audiobuffer_to_scsynth_buffer(scSynth, audioBuffer, bufferNumber, 1, audioBuffer.getChannelData(channelIndex - 1));
             } else {
                 console.error(`fetch_soundfile_channels_to_scsynth_buffers: index out of bounds: ${channelIndex}, ${audioBuffer.numberOfChannels}`);
             }
@@ -5335,13 +5409,13 @@ const sc3_buffer = {
     next: 100
 };
 function SfAcquire(urlOrKey, numberOfChannels, channelSelector) {
-    if (globalThis.globalScsynth) {
+    if (globalThis.globalScSynth) {
         const channelIndices = asArray(channelSelector);
         const soundFileUrl = sc3_buffer.dict[urlOrKey] || urlOrKey;
         let cacheValue = sc3_buffer.cache[soundFileUrl];
         if (!cacheValue) {
             const bufferNumberArray = arrayFromTo(sc3_buffer.next, sc3_buffer.next + numberOfChannels - 1);
-            fetch_soundfile_channels_to_scsynth_buffers(globalThis.globalScsynth, soundFileUrl, bufferNumberArray, channelIndices);
+            fetch_soundfile_channels_to_scsynth_buffers(globalThis.globalScSynth, soundFileUrl, bufferNumberArray, channelIndices);
             sc3_buffer.cache[soundFileUrl] = bufferNumberArray;
             sc3_buffer.next += numberOfChannels;
             cacheValue = bufferNumberArray;
@@ -5522,54 +5596,81 @@ function ugenTraverseCollecting(p, c, w) {
         console.error('ugenTraverseCollecting: unknown type', p, c, w);
     }
 }
-function ugenGraphLeafNodes(p) {
+function ugenTreeLeafNodes(p) {
     const c = setNew();
     ugenTraverseCollecting(p, c, setNew());
     return setAsArray(c);
 }
-class Graph {
+class UgenGraph {
     name;
-    ugenSeq;
-    constantSeq;
-    constructor(name, ugenSeq, constantSeq){
+    ugenArray;
+    constantArray;
+    controlArray;
+    constructor(name, ugenArray, constantArray, controlArray){
         this.name = name;
-        this.ugenSeq = ugenSeq;
-        this.constantSeq = constantSeq;
+        this.ugenArray = ugenArray;
+        this.constantArray = constantArray;
+        this.controlArray = controlArray;
     }
 }
-function signalToUgenGraph(signal) {
+function isScUgenControl(scUgen) {
+    return [
+        'Control',
+        'LagControl',
+        'TrigControl'
+    ].includes(scUgen.name);
+}
+function signalToUgenTree(signal) {
     return signal;
 }
-function makeGraph(name, signal) {
-    const graph = signalToUgenGraph(signal);
-    const leafNodes = ugenGraphLeafNodes(graph);
+function makeUgenGraph(name, signal) {
+    const tree = signalToUgenTree(signal);
+    const leafNodes = ugenTreeLeafNodes(tree);
     const constantNodes = arrayFilter(leafNodes, isNumber);
-    const ugenNodes = arrayFilter(leafNodes, isScUgen);
-    const ugenSeq = arraySort(ugenNodes, scUgenCompare);
-    const numLocalBufs = arrayLength(arrayFilter(ugenSeq, (item)=>item.name === 'LocalBuf'));
+    const controlUgenNodes = arrayFilter(leafNodes, (item)=>isScUgen(item) && item.localControl !== null);
+    const controlNodes = arrayMap((item)=>item.localControl, controlUgenNodes);
+    const controlArray = arraySort(controlNodes, localControlCompare);
+    const ugenNodes = arrayFilter(leafNodes, (item)=>isScUgen(item) && item.localControl === null);
+    const ugenArray = arraySort(ugenNodes, scUgenCompare);
+    const numLocalBufs = arrayLength(arrayFilter(ugenArray, (item)=>item.name === 'LocalBuf'));
     const MaxLocalBufs = function(count) {
         return new ScUgen('MaxLocalBufs', 1, 0, 0, [
             count
         ]);
     };
-    return new Graph(name, arrayAppend([
-        MaxLocalBufs(numLocalBufs)
-    ], ugenSeq), arraySort(arrayNub(arrayAppend([
+    const numControls = controlArray.length;
+    const Control = function(count) {
+        return new ScUgen('Control', controlArray.length, 1, 0, []);
+    };
+    if (numLocalBufs > 0) {
+        ugenArray.unshift(MaxLocalBufs(numLocalBufs));
+    }
+    if (numControls > 0) {
+        ugenArray.unshift(Control(numControls));
+    }
+    return new UgenGraph(name, ugenArray, arraySort(arrayNub(arrayAppend([
         numLocalBufs
-    ], constantNodes)), (i, j)=>i - j));
+    ], constantNodes)), (i, j)=>i - j), controlArray);
 }
 function graphConstantIndex(graph, constantValue) {
-    return arrayIndexOf(graph.constantSeq, constantValue);
+    return arrayIndexOf(graph.constantArray, constantValue);
 }
 function graphUgenIndex(graph, id) {
-    return arrayFindIndex(graph.ugenSeq, (ugen)=>ugen.id === id);
+    return arrayFindIndex(graph.ugenArray, (ugen)=>ugen.id === id);
 }
 function graphUgenInputSpec(graph, input) {
     if (isUgen(input)) {
-        return [
-            graphUgenIndex(graph, input.scUgen.id),
-            input.port
-        ];
+        if (isLocalControl(input)) {
+            return [
+                0,
+                input.scUgen.localControl.index
+            ];
+        } else {
+            return [
+                graphUgenIndex(graph, input.scUgen.id),
+                input.port
+            ];
+        }
     } else {
         return [
             -1,
@@ -5595,23 +5696,29 @@ function graphEncodeSyndef(graph) {
         encodeInt32(2),
         encodeInt16(1),
         encodePascalString(graph.name),
-        encodeInt32(arrayLength(graph.constantSeq)),
-        arrayMap((item)=>encodeFloat32(item), graph.constantSeq),
-        encodeInt32(0),
-        encodeInt32(0),
-        encodeInt32(arrayLength(graph.ugenSeq)),
-        arrayMap((item)=>graphEncodeUgenSpec(graph, item), graph.ugenSeq),
+        encodeInt32(arrayLength(graph.constantArray)),
+        arrayMap((item)=>encodeFloat32(item), graph.constantArray),
+        encodeInt32(arrayLength(graph.controlArray)),
+        arrayMap((item)=>encodeFloat32(item.defaultValue), graph.controlArray),
+        encodeInt32(arrayLength(graph.controlArray)),
+        arrayMap((item)=>[
+                encodePascalString(item.name),
+                encodeInt32(item.index)
+            ], graph.controlArray),
+        encodeInt32(arrayLength(graph.ugenArray)),
+        arrayMap((item)=>graphEncodeUgenSpec(graph, item), graph.ugenArray),
         encodeInt16(0)
     ]);
 }
 function encodeUgen(name, ugen) {
-    return graphEncodeSyndef(makeGraph(name, ugen));
+    return graphEncodeSyndef(makeUgenGraph(name, ugen));
 }
 export { ugenTraverseCollecting as ugenTraverseCollecting };
-export { ugenGraphLeafNodes as ugenGraphLeafNodes };
-export { Graph as Graph };
-export { signalToUgenGraph as signalToUgenGraph };
-export { makeGraph as makeGraph };
+export { ugenTreeLeafNodes as ugenTreeLeafNodes };
+export { UgenGraph as UgenGraph };
+export { isScUgenControl as isScUgenControl };
+export { signalToUgenTree as signalToUgenTree };
+export { makeUgenGraph as makeUgenGraph };
 export { graphConstantIndex as graphConstantIndex };
 export { graphUgenIndex as graphUgenIndex };
 export { graphUgenInputSpec as graphUgenInputSpec };
@@ -5619,49 +5726,53 @@ export { SCgf as SCgf };
 export { graphEncodeUgenSpec as graphEncodeUgenSpec };
 export { graphEncodeSyndef as graphEncodeSyndef };
 export { encodeUgen as encodeUgen };
-function graphPrintUgenSpec(graph, ugen) {
+function ugenGraphPrintUgenSpec(graph, ugen) {
     console.log(ugen.name, ugen.rate, arrayLength(ugen.inputArray), ugen.numChan, ugen.specialIndex, arrayMap((input)=>graphUgenInputSpec(graph, input), ugen.inputArray), arrayReplicate(ugen.numChan, ugen.rate));
 }
-function graphPrintSyndef(graph) {
-    console.log(SCgf, 2, 1, graph.name, arrayLength(graph.constantSeq), graph.constantSeq, 0, [], 0, [], arrayLength(graph.ugenSeq));
-    arrayForEach(graph.ugenSeq, (item)=>graphPrintUgenSpec(graph, item));
+function ugenGraphPrintSyndef(graph) {
+    console.log(SCgf, 2, 1, graph.name, arrayLength(graph.constantArray), graph.constantArray, 0, [], 0, [], arrayLength(graph.ugenArray));
+    arrayForEach(graph.ugenArray, (item)=>ugenGraphPrintUgenSpec(graph, item));
     console.log(0, []);
 }
 function printSyndefOf(ugen) {
-    const graph = makeGraph('sc3.js', wrapOut(0, ugen));
-    graphPrintSyndef(graph);
+    const graph = makeUgenGraph('sc3.js', wrapOut(0, ugen));
+    ugenGraphPrintSyndef(graph);
 }
-function graphInputDisplayName(graph, input) {
+function ugenGraphInputDisplayName(graph, input) {
     if (isUgen(input)) {
-        const id = String(graphUgenIndex(graph, input.scUgen.id));
-        const nm = ugenDisplayName(input.scUgen);
-        const ix = input.scUgen.numChan > 1 ? '[' + String(input.port) + ']' : '';
-        return id + '_' + nm + ix;
+        if (isLocalControl(input)) {
+            return `LocalControl(${input.scUgen.localControl.name}, ${input.scUgen.localControl.defaultValue})`;
+        } else {
+            const id = String(graphUgenIndex(graph, input.scUgen.id));
+            const nm = ugenDisplayName(input.scUgen);
+            const ix = input.scUgen.numChan > 1 ? `[${String(input.port)}]` : '';
+            return `${id}_${nm}${ix}`;
+        }
     } else if (isNumber(input)) {
         return String(input);
     } else {
-        console.error('graphInputDisplayName', input);
+        console.error('ugenGraphInputDisplayName', input);
         return '?';
     }
 }
-function graphPrettyPrintUgen(graph, ugen) {
-    console.log(graphUgenIndex(graph, ugen.id) + '_' + ugenDisplayName(ugen), rateSelector(ugen.rate), '[' + String(arrayMap((input)=>graphInputDisplayName(graph, input), ugen.inputArray)) + ']');
+function ugenGraphPrettyPrintUgen(graph, ugen) {
+    console.log(`${graphUgenIndex(graph, ugen.id)}_${ugenDisplayName(ugen)}`, rateSelector(ugen.rate), `[${String(arrayMap((input)=>ugenGraphInputDisplayName(graph, input), ugen.inputArray))}]`);
 }
-function graphPrettyPrintSyndef(graph) {
-    arrayForEach(graph.ugenSeq, (item)=>graphPrettyPrintUgen(graph, item));
+function ugenGraphPrettyPrintSyndef(graph) {
+    arrayForEach(graph.ugenArray, (item)=>ugenGraphPrettyPrintUgen(graph, item));
 }
 function prettyPrintSyndefOf(ugen) {
-    const graph = makeGraph('sc3.js', wrapOut(0, ugen));
-    graphPrettyPrintSyndef(graph);
+    const graph = makeUgenGraph('sc3.js', wrapOut(0, ugen));
+    ugenGraphPrettyPrintSyndef(graph);
 }
-export { graphPrintUgenSpec as graphPrintUgenSpec };
-export { graphPrintSyndef as graphPrintSyndef };
+export { ugenGraphPrintUgenSpec as ugenGraphPrintUgenSpec };
+export { ugenGraphPrintSyndef as ugenGraphPrintSyndef };
 export { printSyndefOf as printSyndefOf };
-export { graphInputDisplayName as graphInputDisplayName };
-export { graphPrettyPrintUgen as graphPrettyPrintUgen };
-export { graphPrettyPrintSyndef as graphPrettyPrintSyndef };
+export { ugenGraphInputDisplayName as ugenGraphInputDisplayName };
+export { ugenGraphPrettyPrintUgen as ugenGraphPrettyPrintUgen };
+export { ugenGraphPrettyPrintSyndef as ugenGraphPrettyPrintSyndef };
 export { prettyPrintSyndefOf as prettyPrintSyndefOf };
-class Scsynth {
+class ScSynth {
     options;
     boot;
     sendOsc;
@@ -5687,32 +5798,32 @@ class Scsynth {
         };
     }
 }
-function scsynthEnsure(scsynth, activity) {
-    if (scsynth.isAlive) {
+function scSynthEnsure(scSynth, activity) {
+    if (scSynth.isAlive) {
         activity();
-    } else if (scsynth.isStarting) {
-        console.log('scsynthEnsure: starting, schedule activity');
-        setTimeout(()=>scsynthEnsure(scsynth, activity), 1000);
+    } else if (scSynth.isStarting) {
+        console.log('scSynthEnsure: starting, schedule activity');
+        setTimeout(()=>scSynthEnsure(scSynth, activity), 1000);
     } else {
-        console.log('scsynthEnsure: offline, start and schedule activity');
-        scsynth.boot();
-        setTimeout(()=>scsynthEnsure(scsynth, activity), 1000);
+        console.log('scSynthEnsure: offline, start and schedule activity');
+        scSynth.boot();
+        setTimeout(()=>scSynthEnsure(scSynth, activity), 1000);
     }
 }
-function playSyndef(scsynth, syndefName, syndefData, groupId) {
-    console.log('playSyndef #', syndefData.length);
-    scsynth.sendOsc(d_recv_then(syndefData, encodeServerMessage(s_new0(syndefName, -1, 1, groupId))));
+function playSynDef(scSynth, synDefName, synDefData, groupId) {
+    console.log('playSynDef #', synDefData.length);
+    scSynth.sendOsc(d_recv_then(synDefData, encodeServerMessage(s_new0(synDefName, -1, 1, groupId))));
 }
-function playUgen(scsynth, ugenGraph, groupId) {
-    const syndefName = 'anonymous';
-    const syndef = encodeUgen(syndefName, wrapOut(0, ugenGraph));
-    playSyndef(scsynth, syndefName, syndef, groupId);
+function playUgen(scSynth, ugenGraph, groupId) {
+    const synDefName = 'anonymous';
+    const synDef = encodeUgen(synDefName, wrapOut(0, ugenGraph));
+    playSynDef(scSynth, synDefName, synDef, groupId);
 }
-function playProcedure(scsynth, ugenFunction, groupId) {
-    playUgen(scsynth, ugenFunction(), groupId);
+function playProcedure(scSynth, ugenFunction, groupId) {
+    playUgen(scSynth, ugenFunction(), groupId);
 }
-function initGroupStructure(scsynth) {
-    scsynth.sendOsc(g_new([
+function initGroupStructure(scSynth) {
+    scSynth.sendOsc(g_new([
         [
             1,
             1,
@@ -5725,38 +5836,38 @@ function initGroupStructure(scsynth) {
         ]
     ]));
 }
-function resetScsynth(scsynth) {
-    scsynth.sendOsc(g_freeAll([
+function resetScSynth(scSynth) {
+    scSynth.sendOsc(g_freeAll([
         1,
         2
     ]));
-    initGroupStructure(scsynth);
+    initGroupStructure(scSynth);
 }
-function requestStatus(scsynth) {
-    scsynth.sendOsc(m_status);
+function requestStatus(scSynth) {
+    scSynth.sendOsc(m_status);
 }
-function requestNotifications(scsynth) {
-    scsynth.sendOsc(m_notify(1, 1));
+function requestNotifications(scSynth) {
+    scSynth.sendOsc(m_notify(1, 1));
 }
-function requestPrintingOsc(scsynth) {
-    scsynth.sendOsc(m_dumpOsc(1));
+function requestPrintingOsc(scSynth) {
+    scSynth.sendOsc(m_dumpOsc(1));
 }
-function setPointerControls(scsynth, n, w, x, y) {
-    if (scsynth.isAlive) {
-        scsynth.sendOsc(c_setn1(15001 + n * 10, [
+function setPointerControls(scSynth, n, w, x, y) {
+    if (scSynth.isAlive) {
+        scSynth.sendOsc(c_setn1(15001 + n * 10, [
             w,
             x,
             y
         ]));
     }
 }
-export { Scsynth as Scsynth };
-export { scsynthEnsure as scsynthEnsure };
-export { playSyndef as playSyndef };
+export { ScSynth as ScSynth };
+export { scSynthEnsure as scSynthEnsure };
+export { playSynDef as playSynDef };
 export { playUgen as playUgen };
 export { playProcedure as playProcedure };
 export { initGroupStructure as initGroupStructure };
-export { resetScsynth as resetScsynth };
+export { resetScSynth as resetScSynth };
 export { requestStatus as requestStatus };
 export { requestNotifications as requestNotifications };
 export { requestPrintingOsc as requestPrintingOsc };
@@ -5778,18 +5889,18 @@ function sc3_mouse_init(scsynth) {
     document.onmouseup = recv_document_mouse_event;
 }
 export { sc3_mouse_init as sc3_mouse_init };
-const scsynthDefaultOptions = {
+const scSynthDefaultOptions = {
     numInputs: 2,
     numOutputs: 2,
     hardwareBufferSize: 8192,
     blockSize: 48
 };
-function scsynthOptionsPrint(options) {
+function scSynthOptionsPrint(options) {
     console.log('-i', options.numInputs, '-o', options.numOutputs, '-Z', options.hardwareBufferSize, '-z', options.blockSize);
 }
-export { scsynthDefaultOptions as scsynthDefaultOptions };
-export { scsynthOptionsPrint as scsynthOptionsPrint };
-function initScsynthWasmModule(Module, logFunction, displayFunction) {
+export { scSynthDefaultOptions as scSynthDefaultOptions };
+export { scSynthOptionsPrint as scSynthOptionsPrint };
+function initScSynthWasmModule(Module, logFunction, displayFunction) {
     Module.preRun = [];
     Module.postRun = [];
     Module.print = function(text) {
@@ -5810,9 +5921,9 @@ function initScsynthWasmModule(Module, logFunction, displayFunction) {
         displayFunction("&nbsp;");
     };
 }
-export { initScsynthWasmModule as initScsynthWasmModule };
+export { initScSynthWasmModule as initScSynthWasmModule };
 function scsynthWasm(options, wasm, status) {
-    const scsynth = new Scsynth(options, ()=>bootScsynthWasm(scsynth, wasm), (oscPacket)=>sendOscWasm(scsynth, wasm, oscPacket), status);
+    const scsynth = new ScSynth(options, ()=>bootScSynthWasm(scsynth, wasm), (oscPacket)=>sendOscWasm(scsynth, wasm, oscPacket), status);
     return scsynth;
 }
 function sendOscWasm(scsynth, wasm, oscPacket) {
@@ -5828,8 +5939,8 @@ function sendOscWasm(scsynth, wasm, oscPacket) {
         console.warn('sendOscWasm: scsynth not running', scsynth.isStarting, scsynth.isAlive);
     }
 }
-function bootScsynthWasm(scsynth, wasm) {
-    scsynthOptionsPrint(scsynth.options);
+function bootScSynthWasm(scsynth, wasm) {
+    scSynthOptionsPrint(scsynth.options);
     if (!scsynth.isAlive && !scsynth.isStarting) {
         const args = wasm['arguments'];
         args[args.indexOf('-i') + 1] = String(scsynth.options.numInputs);
@@ -5843,7 +5954,7 @@ function bootScsynthWasm(scsynth, wasm) {
         setInterval(()=>sendOscWasm(scsynth, wasm, m_status), 1000);
         scsynth.isStarting = true;
     } else {
-        console.log('bootScsynth: already running');
+        console.log('bootScSynth: already running');
     }
 }
 function monitorOscWasm(scsynth, wasm) {
@@ -5872,14 +5983,14 @@ function monitorOscWasm(scsynth, wasm) {
 }
 export { scsynthWasm as scsynthWasm };
 export { sendOscWasm as sendOscWasm };
-export { bootScsynthWasm as bootScsynthWasm };
+export { bootScSynthWasm as bootScSynthWasm };
 if (globalThis.Module !== undefined) {
-    initScsynthWasmModule(globalThis.Module, consoleLogMessageFrom, function(_text) {
+    initScSynthWasmModule(globalThis.Module, consoleLogMessageFrom, function(_text) {
         return null;
     });
 }
 function sc3_wasm_init(showStatus) {
-    globalThis.globalScsynth = scsynthWasm(scsynthDefaultOptions, globalThis.Module, showStatus);
+    globalThis.globalScSynth = scsynthWasm(scSynthDefaultOptions, globalThis.Module, showStatus);
     globalThis.onerror = function(event) {
         consoleLogMessageFrom('globalThis.onerror', String(event));
     };

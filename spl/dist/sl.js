@@ -9204,6 +9204,11 @@ function isByte(anObject) {
     return isNumber(anObject) && Number.isInteger(anObject) && anObject >= 0 && anObject < 256;
 }
 class Method {
+    name;
+    procedure;
+    arity;
+    sourceCode;
+    origin;
     constructor(name, procedure, arity, sourceCode, origin){
         this.name = name;
         this.procedure = procedure;
@@ -9223,7 +9228,6 @@ class Trait {
         this.methodDictionary = new Map();
     }
 }
-const traitDictionary = new Map();
 class Type {
     name;
     traitArray;
@@ -9236,40 +9240,52 @@ class Type {
         this.methodDictionary = new Map();
     }
 }
-const typeDictionary = new Map([
-    [
-        'Array',
-        new Type('Array', [], [])
-    ],
-    [
-        'String',
-        new Type('String', [], [])
-    ],
-    [
-        'Void',
-        new Type('Void', [], [])
-    ]
-]);
+class System {
+    methodDictionary;
+    traitDictionary;
+    typeDictionary;
+    nextUniqueId;
+    constructor(){
+        this.methodDictionary = new Map();
+        this.traitDictionary = new Map();
+        this.typeDictionary = new Map([
+            [
+                'Array',
+                new Type('Array', [], [])
+            ],
+            [
+                'String',
+                new Type('String', [], [])
+            ],
+            [
+                'Void',
+                new Type('Void', [], [])
+            ]
+        ]);
+        this.nextUniqueId = 1;
+    }
+}
+const system = new System();
 function addTrait(traitName) {
-    if (!traitDictionary.has(traitName)) {
-        traitDictionary.set(traitName, new Trait(traitName));
+    if (!system.traitDictionary.has(traitName)) {
+        system.traitDictionary.set(traitName, new Trait(traitName));
     }
 }
 function addTraitMethod(traitName, methodName, arity, procedure, sourceCode) {
-    const trait = traitDictionary.get(traitName);
-    const method = new Method(methodName, procedure, arity, sourceCode, traitName);
+    const trait = system.traitDictionary.get(traitName);
+    const method = new Method(methodName, procedure, arity, sourceCode, trait);
     trait.methodDictionary.set(method.qualifiedName(), method);
     return method;
 }
 function copyTraitToType(traitName, typeName) {
-    const methodDictionary = traitDictionary.get(traitName).methodDictionary;
+    const methodDictionary = system.traitDictionary.get(traitName).methodDictionary;
     for (const [name, method] of methodDictionary){
         addMethodFor(typeName, method);
     }
 }
 function traitTypeArray(traitName) {
     const answer = [];
-    for (const [typeName, typeValue] of typeDictionary){
+    for (const [typeName, typeValue] of system.typeDictionary){
         if (typeValue.traitArray.includes(traitName)) {
             answer.push(typeName);
         }
@@ -9283,9 +9299,8 @@ function extendTraitWithMethod(traitName, name, arity, procedure, sourceCode) {
     });
     return method;
 }
-const methodTable = new Map();
 function lookupGeneric(methodName, methodArity, receiverType) {
-    return methodTable.get(methodName).get(methodArity).get(receiverType);
+    return system.methodDictionary.get(methodName).get(methodArity).get(receiverType);
 }
 function nameWithoutArity(methodName) {
     return methodName.split(':')[0];
@@ -9322,12 +9337,11 @@ function dispatchByArity(name, arity, arityTable, parameterArray) {
     }
 }
 function addMethodFor(typeName, method) {
-    if (slOptions.requireTypeExists && !typeDictionary.has(typeName)) {
-        console.error(`addMethodFor: type does not exist: ${typeName}`);
-        return;
+    if (slOptions.requireTypeExists && !system.typeDictionary.has(typeName)) {
+        throw `addMethodFor: type does not exist: ${typeName}`;
     }
-    if (!methodTable.has(method.name)) {
-        methodTable.set(method.name, new Map());
+    if (!system.methodDictionary.has(method.name)) {
+        system.methodDictionary.set(method.name, new Map());
         if (slOptions.simpleArityModel) {
             const prefixedName = '_' + method.name;
             let globalFunction = globalThis[prefixedName];
@@ -9344,7 +9358,7 @@ function addMethodFor(typeName, method) {
             }
         }
     }
-    let arityTable = methodTable.get(method.name);
+    let arityTable = system.methodDictionary.get(method.name);
     if (!arityTable.has(method.arity)) {
         arityTable.set(method.arity, new Map());
         if (!slOptions.simpleArityModel) {
@@ -9365,16 +9379,17 @@ function addMethodFor(typeName, method) {
         }
     }
     const existingEntry = arityTable.get(method.arity).get(typeName);
-    if (existingEntry && existingEntry.origin === typeName && method.origin !== typeName) {} else {
+    if (existingEntry && existingEntry.origin.name === typeName && method.origin.name !== typeName) {} else {
         arityTable.get(method.arity).set(typeName, method);
     }
-    if (typeName === method.origin) {
-        typeDictionary.get(typeName).methodDictionary.set(method.qualifiedName(), method);
+    if (typeName === method.origin.name) {
+        system.typeDictionary.get(typeName).methodDictionary.set(method.qualifiedName(), method);
     }
     return method;
 }
 function addMethod(typeName, methodName, arity, procedure, sourceCode) {
-    const method = new Method(methodName, procedure, arity, sourceCode, typeName);
+    const typeValue = system.typeDictionary.get(typeName);
+    const method = new Method(methodName, procedure, arity, sourceCode, typeValue);
     return addMethodFor(typeName, method);
 }
 function addType(typeName, traitList, slotNames) {
@@ -9384,7 +9399,7 @@ function addType(typeName, traitList, slotNames) {
     const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive>')`;
     const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive>');`).join('; ');
     const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive>');`).join('; ');
-    typeDictionary.set(typeName, new Type(typeName, traitList, slotNames));
+    system.typeDictionary.set(typeName, new Type(typeName, traitList, slotNames));
     eval(defType);
     eval(defPredicateFalse);
     eval(defPredicateTrue);
@@ -9404,24 +9419,7 @@ function assignGlobals() {
     globalThis._pi = Math.PI;
     globalThis._inf = Infinity;
     globalThis._implicitDictionary = new Map();
-    globalThis._system = new Map([
-        [
-            'methodTable',
-            methodTable
-        ],
-        [
-            'traitDictionary',
-            traitDictionary
-        ],
-        [
-            'typeDictionary',
-            typeDictionary
-        ],
-        [
-            'nextUniqueId',
-            1
-        ]
-    ]);
+    globalThis._system = system;
     globalThis._workspace = new Map();
 }
 export { typeOf as typeOf };
@@ -9434,15 +9432,14 @@ export { isString as isString };
 export { isByte as isByte };
 export { Method as Method };
 export { Trait as Trait };
-export { traitDictionary as traitDictionary };
 export { Type as Type };
-export { typeDictionary as typeDictionary };
+export { System as System };
+export { system as system };
 export { addTrait as addTrait };
 export { addTraitMethod as addTraitMethod };
 export { copyTraitToType as copyTraitToType };
 export { traitTypeArray as traitTypeArray };
 export { extendTraitWithMethod as extendTraitWithMethod };
-export { methodTable as methodTable };
 export { lookupGeneric as lookupGeneric };
 export { nameWithoutArity as nameWithoutArity };
 export { applyGenericAt as applyGenericAt };
