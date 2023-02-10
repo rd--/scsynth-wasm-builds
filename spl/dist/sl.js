@@ -8648,7 +8648,9 @@ Sl {
 	ParenthesisedExpression = "(" Expression ")"
 	NonEmptyDictionaryExpression = "(" NonemptyListOf<AssociationExpression, ","> ")"
 	DictionaryExpression = "(" ListOf<AssociationExpression, ","> ")"
-	AssociationExpression = identifier ":" Expression
+	AssociationExpression = IdentifierAssociation | StringAssociation
+	IdentifierAssociation = identifier ":" Expression
+	StringAssociation = singleQuotedStringLiteral ":" Expression
 	ArrayExpression = "[" ListOf<Expression, ","> "]"
 	ArrayRangeSyntax = "[" Expression ".." Expression "]"
 	ArrayRangeThenSyntax = "[" Expression "," Expression ".." Expression "]"
@@ -8701,6 +8703,9 @@ const slOptions = {
 export { slOptions as slOptions };
 function genName(name, arity) {
     return slOptions.simpleArityModel ? name : `${name}_${arity}`;
+}
+function quoteNewLines(input) {
+    return input.replaceAll('\n', '\\n');
 }
 const asJs = {
     ClassExtension (_e, clsNm, _l, mthNm, mthBlk, _r) {
@@ -8905,8 +8910,11 @@ const asJs = {
     NonEmptyDictionaryExpression (_l, dict, _r) {
         return `new Map([${commaList(dict.asIteration().children)}])`;
     },
-    AssociationExpression (lhs, _arrow, rhs) {
+    IdentifierAssociation (lhs, _arrow, rhs) {
         return `['${lhs.sourceString}', ${rhs.asJs}]`;
+    },
+    StringAssociation (lhs, _arrow, rhs) {
+        return `[${lhs.sourceString}, ${rhs.asJs}]`;
     },
     ArrayExpression (_l, array, _r) {
         return `[${commaList(array.asIteration().children)}]`;
@@ -8945,7 +8953,7 @@ const asJs = {
         return `${s.sourceString}${i.sourceString}`;
     },
     singleQuotedStringLiteral (_l, s, _r) {
-        return `'${s.sourceString}'`;
+        return `'${quoteNewLines(s.sourceString)}'`;
     },
     doubleQuotedStringLiteral (_l, s, _r) {
         return `_${genName('parseDoubleQuotedString', 1)}('${s.sourceString}')`;
@@ -9230,13 +9238,13 @@ class Trait {
 }
 class Type {
     name;
-    traitArray;
-    slotArray;
+    traitNameArray;
+    slotNameArray;
     methodDictionary;
-    constructor(name, traitArray, slotArray){
+    constructor(name, traitNameArray, slotNameArray){
         this.name = name;
-        this.traitArray = traitArray;
-        this.slotArray = slotArray;
+        this.traitNameArray = traitNameArray;
+        this.slotNameArray = slotNameArray;
         this.methodDictionary = new Map();
     }
 }
@@ -9244,7 +9252,9 @@ class System {
     methodDictionary;
     traitDictionary;
     typeDictionary;
+    categoryDictionary;
     nextUniqueId;
+    window;
     constructor(){
         this.methodDictionary = new Map();
         this.traitDictionary = new Map();
@@ -9262,7 +9272,9 @@ class System {
                 new Type('Void', [], [])
             ]
         ]);
+        this.categoryDictionary = new Map();
         this.nextUniqueId = 1;
+        this.window = window;
     }
 }
 const system = new System();
@@ -9286,7 +9298,7 @@ function copyTraitToType(traitName, typeName) {
 function traitTypeArray(traitName) {
     const answer = [];
     for (const [typeName, typeValue] of system.typeDictionary){
-        if (typeValue.traitArray.includes(traitName)) {
+        if (typeValue.traitNameArray.includes(traitName)) {
             answer.push(typeName);
         }
     }
@@ -9393,14 +9405,17 @@ function addMethod(typeName, methodName, arity, procedure, sourceCode) {
     return addMethodFor(typeName, method);
 }
 function addType(typeName, traitList, slotNames) {
-    const slots = slotNames.map((each)=>`${each}: ${each}`).join(', ');
-    const defType = slotNames.length === 0 ? '' : `extendTraitWithMethod('Object', 'new${typeName}', ${slotNames.length}, function(${slotNames.join(', ')}) { return {_type: '${typeName}', ${slots} }; }, '<primitive>')`;
-    const defPredicateFalse = `extendTraitWithMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive>')`;
-    const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive>')`;
-    const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive>');`).join('; ');
-    const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive>');`).join('; ');
+    const initializeSlots = slotNames.map((each)=>`anInstance.${each} = ${each}`).join('; ');
+    const nilSlots = slotNames.map((each)=>`${each}: null`).join(', ');
+    const defNilType = slotNames.length === 0 ? '' : `addMethod('Void', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
+    const defInitializer = slotNames.length === 0 ? '' : `addMethod('${typeName}', 'initialize', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
+    const defPredicateFalse = `extendTraitWithMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive: predicate>')`;
+    const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive: predicate>')`;
+    const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive: accessor>');`).join('; ');
+    const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive: mutator>');`).join('; ');
     system.typeDictionary.set(typeName, new Type(typeName, traitList, slotNames));
-    eval(defType);
+    eval(defNilType);
+    eval(defInitializer);
     eval(defPredicateFalse);
     eval(defPredicateTrue);
     eval(defSlotAccess);
