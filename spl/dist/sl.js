@@ -8557,11 +8557,11 @@ const slGrammar = ohm.grammar(String.raw`
 Sl {
 
 	TopLevel = LibraryExpression+ | Program
-	LibraryExpression = ClassExpression | TraitExpression
-	ClassExpression = ClassExtension | ClassListExtension | ClassDefinition
-	ClassExtension = "+" identifier "{" (methodName Block)* "}"
-	ClassListExtension = "+" "[" NonemptyListOf<identifier, ","> "]" "{" (methodName Block)* "}"
-	ClassDefinition = identifier TraitList? "{" Temporaries? (methodName Block)* "}"
+	LibraryExpression = TypeExpression | TraitExpression
+	TypeExpression = TypeExtension | TypeListExtension | TypeDefinition
+	TypeExtension = "+" identifier "{" (methodName Block)* "}"
+	TypeListExtension = "+" "[" NonemptyListOf<identifier, ","> "]" "{" (methodName Block)* "}"
+	TypeDefinition = identifier TraitList? "{" Temporaries? (methodName Block)* "}"
 	TraitList = ":" "[" NonemptyListOf<identifier, ","> "]"
 	TraitExpression = TraitExtension | TraitDefinition
 	TraitExtension = "+" "@" identifier "{" (methodName Block)* "}"
@@ -8708,17 +8708,17 @@ function quoteNewLines(input) {
     return input.replaceAll('\n', '\\n');
 }
 const asJs = {
-    ClassExtension (_e, clsNm, _l, mthNm, mthBlk, _r) {
+    TypeExtension (_e, clsNm, _l, mthNm, mthBlk, _r) {
         return makeMethodList('addMethod', [
             clsNm.sourceString
         ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
-    ClassListExtension (_e, _cl, clsNmList, _cr, _ml, mthNm, mthBlk, _mr) {
+    TypeListExtension (_e, _cl, clsNmList, _cr, _ml, mthNm, mthBlk, _mr) {
         const clsNmArray = clsNmList.asIteration().children.map((c)=>c.sourceString);
         return makeMethodList('addMethod', clsNmArray, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
-    ClassDefinition (clsNm, trt, _l, tmp, mthNm, mthBlk, _r) {
-        function makeClassDefinition(clsNm, trt, tmp, mthNms, mthBlks) {
+    TypeDefinition (clsNm, trt, _l, tmp, mthNm, mthBlk, _r) {
+        function makeTypeDefinition(clsNm, trt, tmp, mthNms, mthBlks) {
             const tmpSrc = tmp.sourceString;
             const tmpNm = tmpSrc === '' ? [] : slTemporariesSyntaxNames(tmpSrc).map((nm)=>`'${nm}'`);
             const traitList = trt.split(', ').filter((each)=>each.length > 0);
@@ -8729,7 +8729,7 @@ const asJs = {
             ], mthNms, mthBlks);
             return `${addType}${copyTraits}${addMethods}`;
         }
-        return makeClassDefinition(clsNm.sourceString, trt.asJs, tmp, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+        return makeTypeDefinition(clsNm.sourceString, trt.asJs, tmp, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
     TraitList (_c, _l, nm, _r) {
         return nm.asIteration().children.map((c)=>`'${c.sourceString}'`).join(', ');
