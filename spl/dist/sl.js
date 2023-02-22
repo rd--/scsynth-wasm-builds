@@ -8553,7 +8553,7 @@ var extras = {
     semanticsForToAST: semanticsToAST.semantics,
     toAST: semanticsToAST.helper
 };
-const slGrammar = ohm.grammar(String.raw`
+const slGrammarDefinition = String.raw`
 Sl {
 
 	TopLevel = LibraryExpression+ | Program
@@ -8628,7 +8628,7 @@ Sl {
 	DotExpressionWithTrailingClosuresSyntax = Primary "." identifier NonEmptyParameterList? Block+
 	DotExpressionWithTrailingDictionariesSyntax = Primary "." identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
 	DotExpressionWithAssignmentSyntax = Primary "." identifier ":=" Expression
-	DotExpression = Primary ("." identifier ~("{" | ":=") NonEmptyParameterList?)+
+	DotExpression = Primary ("." identifier ~("{" | ":=") NonEmptyParameterList?~("{"))+
 
 	ImplicitDictionaryAtPutSyntax = "::" identifier ":=" Expression
 	ImplicitDictionaryAtSyntax = "::" identifier
@@ -8640,7 +8640,7 @@ Sl {
 	Primitive = "<primitive:" primitiveCharacter* ">"
 	Statements = NonFinalExpression | FinalExpression
 	NonFinalExpression = Expression ";" Statements
-	FinalExpression = Expression ";"?
+	FinalExpression = Expression
 
 	ApplyWithTrailingClosuresSyntax = identifier NonEmptyParameterList? Block+
 	ApplyWithTrailingDictionariesSyntax = identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
@@ -8683,7 +8683,8 @@ Sl {
 	space += comment
 
 }
-`);
+`;
+const slGrammar = ohm.grammar(slGrammarDefinition);
 const slSemantics = slGrammar.createSemantics();
 function slParse(str) {
     return slSemantics(slGrammar.match(str));
@@ -8882,7 +8883,7 @@ const asJs = {
     NonFinalExpression (e, _, stm) {
         return `${e.asJs}; ${stm.asJs};`;
     },
-    FinalExpression (e, _) {
+    FinalExpression (e) {
         return `return ${e.asJs};`;
     },
     ApplyWithTrailingClosuresSyntax (rcv, arg, tc) {
