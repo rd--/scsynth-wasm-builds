@@ -9242,13 +9242,18 @@ class Type {
     traitNameArray;
     slotNameArray;
     methodDictionary;
-    constructor(name, traitNameArray, slotNameArray){
+    constructor(name, traitNameArray, slotNameArray, methodDictionary){
         this.name = name;
         this.traitNameArray = traitNameArray;
         this.slotNameArray = slotNameArray;
-        this.methodDictionary = new Map();
+        this.methodDictionary = methodDictionary;
     }
 }
+const preinstalledTypes = [
+    'Array',
+    'String',
+    'Void'
+];
 class System {
     methodDictionary;
     traitDictionary;
@@ -9259,41 +9264,52 @@ class System {
     constructor(){
         this.methodDictionary = new Map();
         this.traitDictionary = new Map();
-        this.typeDictionary = new Map([
-            [
-                'Array',
-                new Type('Array', [], [])
-            ],
-            [
-                'String',
-                new Type('String', [], [])
-            ],
-            [
-                'Void',
-                new Type('Void', [], [])
-            ]
-        ]);
+        this.typeDictionary = new Map(preinstalledTypes.map(function(each) {
+            return [
+                each,
+                new Type(each, [], [], new Map())
+            ];
+        }));
         this.categoryDictionary = new Map();
         this.nextUniqueId = 1;
         this.window = window;
     }
 }
 const system = new System();
+function traitExists(traitName) {
+    return system.traitDictionary.has(traitName);
+}
+function typeExists(typeName) {
+    return system.typeDictionary.has(typeName);
+}
+function methodExists(methodName) {
+    return system.methodDictionary.has(methodName);
+}
 function addTrait(traitName) {
-    if (!system.traitDictionary.has(traitName)) {
+    if (!traitExists(traitName)) {
         system.traitDictionary.set(traitName, new Trait(traitName));
+    } else {
+        throw `addTrait: trait exists: ${traitName}`;
     }
 }
 function addTraitMethod(traitName, methodName, arity, procedure, sourceCode) {
-    const trait = system.traitDictionary.get(traitName);
-    const method = new Method(methodName, procedure, arity, sourceCode, trait);
-    trait.methodDictionary.set(method.qualifiedName(), method);
-    return method;
+    if (traitExists(traitName)) {
+        const trait = system.traitDictionary.get(traitName);
+        const method = new Method(methodName, procedure, arity, sourceCode, trait);
+        trait.methodDictionary.set(method.qualifiedName(), method);
+        return method;
+    } else {
+        throw `addTraitMethod: trait does not exist: ${traitName}, ${methodName}, ${arity}`;
+    }
 }
 function copyTraitToType(traitName, typeName) {
-    const methodDictionary = system.traitDictionary.get(traitName).methodDictionary;
-    for (const [name, method] of methodDictionary){
-        addMethodFor(typeName, method);
+    if (traitExists(traitName) && typeExists(typeName)) {
+        const methodDictionary = system.traitDictionary.get(traitName).methodDictionary;
+        for (const [name, method] of methodDictionary){
+            addMethodFor(typeName, method);
+        }
+    } else {
+        throw `copyTraitToType: trait or type does not exist: ${traitName}, ${typeName}`;
     }
 }
 function traitTypeArray(traitName) {
@@ -9306,11 +9322,15 @@ function traitTypeArray(traitName) {
     return answer;
 }
 function extendTraitWithMethod(traitName, name, arity, procedure, sourceCode) {
-    const method = addTraitMethod(traitName, name, arity, procedure, sourceCode);
-    traitTypeArray(traitName).forEach(function(typeName) {
-        addMethodFor(typeName, method);
-    });
-    return method;
+    if (traitExists(traitName)) {
+        const method = addTraitMethod(traitName, name, arity, procedure, sourceCode);
+        traitTypeArray(traitName).forEach(function(typeName) {
+            addMethodFor(typeName, method);
+        });
+        return method;
+    } else {
+        throw `extendTraitWithMethod: ${traitName}, ${name}`;
+    }
 }
 function lookupGeneric(methodName, methodArity, receiverType) {
     return system.methodDictionary.get(methodName).get(methodArity).get(receiverType);
@@ -9350,10 +9370,10 @@ function dispatchByArity(name, arity, arityTable, parameterArray) {
     }
 }
 function addMethodFor(typeName, method) {
-    if (slOptions.requireTypeExists && !system.typeDictionary.has(typeName)) {
-        throw `addMethodFor: type does not exist: ${typeName}`;
+    if (slOptions.requireTypeExists && !typeExists(typeName)) {
+        throw `addMethodFor: type does not exist: ${typeName} (${method})`;
     }
-    if (!system.methodDictionary.has(method.name)) {
+    if (!methodExists(method.name)) {
         system.methodDictionary.set(method.name, new Map());
         if (slOptions.simpleArityModel) {
             const prefixedName = '_' + method.name;
@@ -9401,26 +9421,35 @@ function addMethodFor(typeName, method) {
     return method;
 }
 function addMethod(typeName, methodName, arity, procedure, sourceCode) {
-    const typeValue = system.typeDictionary.get(typeName);
-    const method = new Method(methodName, procedure, arity, sourceCode, typeValue);
-    return addMethodFor(typeName, method);
+    if (typeExists(typeName)) {
+        const typeValue = system.typeDictionary.get(typeName);
+        const method = new Method(methodName, procedure, arity, sourceCode, typeValue);
+        return addMethodFor(typeName, method);
+    } else {
+        throw `addMethod: ${typeName}, ${methodName}, ${arity}`;
+    }
 }
 function addType(typeName, traitList, slotNames) {
-    const initializeSlots = slotNames.map((each)=>`anInstance.${each} = ${each}`).join('; ');
-    const nilSlots = slotNames.map((each)=>`${each}: null`).join(', ');
-    const defNilType = slotNames.length === 0 ? '' : `addMethod('Void', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
-    const defInitializeSlots = slotNames.length === 0 ? '' : `addMethod('${typeName}', 'initializeSlots', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
-    const defPredicateFalse = `extendTraitWithMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive: predicate>')`;
-    const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive: predicate>')`;
-    const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive: accessor>');`).join('; ');
-    const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive: mutator>');`).join('; ');
-    system.typeDictionary.set(typeName, new Type(typeName, traitList, slotNames));
-    eval(defNilType);
-    eval(defInitializeSlots);
-    eval(defPredicateFalse);
-    eval(defPredicateTrue);
-    eval(defSlotAccess);
-    eval(defSlotMutate);
+    if (!typeExists(typeName) || preinstalledTypes.includes(typeName)) {
+        const initializeSlots = slotNames.map((each)=>`anInstance.${each} = ${each}`).join('; ');
+        const nilSlots = slotNames.map((each)=>`${each}: null`).join(', ');
+        const defNilType = slotNames.length === 0 ? '' : `addMethod('Void', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
+        const defInitializeSlots = slotNames.length === 0 ? '' : `addMethod('${typeName}', 'initializeSlots', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
+        const defPredicateFalse = `extendTraitWithMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive: predicate>')`;
+        const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive: predicate>')`;
+        const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive: accessor>');`).join('; ');
+        const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive: mutator>');`).join('; ');
+        const methodDictionary = typeExists(typeName) ? system.typeDictionary.get(typeName).methodDictionary : new Map();
+        system.typeDictionary.set(typeName, new Type(typeName, traitList, slotNames, methodDictionary));
+        eval(defNilType);
+        eval(defInitializeSlots);
+        eval(defPredicateFalse);
+        eval(defPredicateTrue);
+        eval(defSlotAccess);
+        eval(defSlotMutate);
+    } else {
+        throw `addType: type exists: ${typeName}`;
+    }
 }
 function shiftRight(lhs, rhs) {
     return lhs >> rhs;
@@ -9494,11 +9523,11 @@ async function loadUrlArrayInSequence(loadPath, urlArray) {
     }
 }
 function addLoadUrlMethods() {
-    addMethod('String', 'loadPath', 1, setLoadPath, '<primitive>');
-    addMethod('String', 'loadUrl', 1, loadUrl, '<primitive>');
-    addMethod('String', 'load', 1, loadUrl, '<primitive>');
-    addMethod('Array', 'loadUrlSequence', 1, loadUrlSequence, '<primitive>');
-    addMethod('Array', 'loadSequence', 1, loadUrlSequence, '<primitive>');
+    addMethod('String', 'loadPath', 1, setLoadPath, '<primitive: loader>');
+    addMethod('String', 'loadUrl', 1, loadUrl, '<primitive: loader>');
+    addMethod('String', 'load', 1, loadUrl, '<primitive: loader>');
+    addMethod('Array', 'loadUrlSequence', 1, loadUrlSequence, '<primitive: loader>');
+    addMethod('Array', 'loadSequence', 1, loadUrlSequence, '<primitive: loader>');
 }
 export { loader as loader };
 export { setLoadPath as setLoadPath };
