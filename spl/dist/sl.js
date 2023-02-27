@@ -8665,8 +8665,9 @@ Sl {
 	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$"
 
 	literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
-	numberLiteral = floatLiteral | integerLiteral
+	numberLiteral = floatLiteral | fractionLiteral | integerLiteral
 	floatLiteral = "-"? digit+ "." digit+
+	fractionLiteral = "-"? digit+ ":" digit+
 	integerLiteral = "-"? digit+
 	singleQuotedStringLiteral = "\'" (~"\'" sourceCharacter)* "\'"
 	doubleQuotedStringLiteral = "\"" (~"\"" sourceCharacter)* "\""
@@ -8949,6 +8950,9 @@ const asJs = {
     },
     floatLiteral (s, i, _, f) {
         return `${s.sourceString}${i.sourceString}.${f.sourceString}`;
+    },
+    fractionLiteral (s, i, _, f) {
+        return `_reduced_1(_Fraction_2(${s.sourceString}${i.sourceString}, ${f.sourceString}))`;
     },
     integerLiteral (s, i) {
         return `${s.sourceString}${i.sourceString}`;
