@@ -928,6 +928,31 @@ function numberTimesRepeat(count, proc) {
 function numberToString(aNumber) {
     return Number(aNumber).toString();
 }
+function isPrime(aNumber) {
+    if (aNumber <= 1) return false;
+    if (aNumber === 2) return true;
+    const sqrt = Math.sqrt(aNumber);
+    for(let i = 2; i <= sqrt; i++){
+        if (aNumber % i === 0) {
+            return false;
+        }
+    }
+    return true;
+}
+function primeFactors(aNumber) {
+    const factors = [];
+    let divisor = 2;
+    let n = aNumber;
+    while(n >= 2){
+        if (n % divisor == 0) {
+            factors.push(divisor);
+            n = n / divisor;
+        } else {
+            divisor++;
+        }
+    }
+    return factors;
+}
 export { isNumber as isNumber };
 export { pi as pi };
 export { inf as inf };
@@ -937,6 +962,8 @@ export { randomFloat as randomFloat };
 export { randomBoolean as randomBoolean };
 export { numberTimesRepeat as numberTimesRepeat };
 export { numberToString as numberToString };
+export { isPrime as isPrime };
+export { primeFactors as primeFactors };
 function isObject(aValue) {
     const typeString = typeof aValue;
     return typeString === 'function' || typeString === 'object' && !!aValue;
