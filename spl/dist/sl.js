@@ -8557,7 +8557,7 @@ const slGrammarDefinition = String.raw`
 Sl {
 
 	TopLevel = LibraryExpression+ | Program
-	LibraryExpression = TypeExpression | TraitExpression
+	LibraryExpression = TypeExpression | TraitExpression | ConstantDefinition
 	TypeExpression = TypeExtension | TypeListExtension | TypeDefinition
 	TypeExtension = "+" identifier "{" (methodName Block)* "}"
 	TypeListExtension = "+" "[" NonemptyListOf<identifier, ","> "]" "{" (methodName Block)* "}"
@@ -8566,6 +8566,7 @@ Sl {
 	TraitExpression = TraitExtension | TraitDefinition
 	TraitExtension = "+" "@" identifier "{" (methodName Block)* "}"
 	TraitDefinition = "@" identifier "{" (methodName Block)* "}"
+	ConstantDefinition = unqualifiedIdentifier "=" literal
 	Program = Temporaries? ExpressionSequence
 	Temporaries = TemporariesWithInitializers | TemporariesWithoutInitializers | TemporariesVarSyntax+
 	TemporariesWithInitializers = "|" NonemptyListOf<TemporaryWithInitializer, ","> ";" "|"
@@ -8658,6 +8659,7 @@ Sl {
 	IntervalThenSyntax = "(" Expression "," Expression ".." Expression ")"
 
 	methodName = identifier | binaryOperator
+	unqualifiedIdentifier = letter letterOrDigit*
 	identifier = letter letterOrDigit* (":/" digit+)?
 	letterOrDigit = letter | digit
 	reservedIdentifier = "nil" | "true" | "false"
@@ -8747,6 +8749,9 @@ const asJs = {
             trtNm.sourceString
         ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
         return `${trt}${mth}`;
+    },
+    ConstantDefinition (name, _equals, value) {
+        return `globalThis._${name.sourceString} = ${value.asJs};`;
     },
     Program (tmp, stm) {
         return tmp.asJs + stm.asJs;
@@ -8907,10 +8912,10 @@ const asJs = {
         return `(${e.asJs})`;
     },
     DictionaryExpression (_leftParen, dict, _rightParen) {
-        return `new Map([${commaList(dict.asIteration().children)}])`;
+        return `Object.fromEntries([${commaList(dict.asIteration().children)}])`;
     },
     NonEmptyDictionaryExpression (_leftParen, dict, _rightParen) {
-        return `new Map([${commaList(dict.asIteration().children)}])`;
+        return `Object.fromEntries([${commaList(dict.asIteration().children)}])`;
     },
     IdentifierAssociation (lhs, _colon, rhs) {
         return `['${lhs.sourceString}', ${rhs.asJs}]`;
@@ -9182,7 +9187,7 @@ function typeOf(anObject) {
             case 'function':
                 return 'Procedure';
             case 'number':
-                return 'Number';
+                return 'SmallFloat';
             case 'bigint':
                 return 'LargeInteger';
             case 'string':
@@ -9204,7 +9209,7 @@ function isByteArray(anObject) {
 function isFunction(anObject) {
     return anObject instanceof Function;
 }
-function isNumber(anObject) {
+function isSmallFloat(anObject) {
     return typeof anObject === 'number';
 }
 function isIdentitySet(anObject) {
@@ -9214,7 +9219,7 @@ function isString(anObject) {
     return typeof anObject === 'string';
 }
 function isByte(anObject) {
-    return isNumber(anObject) && Number.isInteger(anObject) && anObject >= 0 && anObject < 256;
+    return isSmallFloat(anObject) && Number.isInteger(anObject) && anObject >= 0 && anObject < 256;
 }
 class Method {
     name;
@@ -9465,7 +9470,6 @@ function arrayCheckIndex(anArray, anInteger) {
     return Number.isInteger(anInteger) && anInteger >= 0 && anInteger < anArray.length;
 }
 function assignGlobals() {
-    globalThis._pi = Math.PI;
     globalThis._inf = Infinity;
     globalThis._constant = new Map();
     globalThis._implicitDictionary = new Map();
@@ -9476,7 +9480,7 @@ export { typeOf as typeOf };
 export { isArray as isArray };
 export { isByteArray as isByteArray };
 export { isFunction as isFunction };
-export { isNumber as isNumber };
+export { isSmallFloat as isSmallFloat };
 export { isIdentitySet as isIdentitySet };
 export { isString as isString };
 export { isByte as isByte };
