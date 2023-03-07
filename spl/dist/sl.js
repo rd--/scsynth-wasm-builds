@@ -3359,8 +3359,8 @@ GrammarDecl$1.prototype.build = function() {
         }
         try {
             body.assertAllApplicationsAreValid(ruleName, grammar);
-        } catch (e1) {
-            grammarErrors.push(e1);
+        } catch (e) {
+            grammarErrors.push(e);
             grammarHasInvalidApplications = true;
         }
     });
@@ -8957,7 +8957,7 @@ const asJs = {
         return `${s.sourceString}${i.sourceString}.${f.sourceString}`;
     },
     fractionLiteral (s, i, _, f) {
-        return `_reduced_1(_Fraction_2(${s.sourceString}${i.sourceString}, ${f.sourceString}))`;
+        return `_normalized_1(_Fraction_2(${s.sourceString}${i.sourceString}, ${f.sourceString}))`;
     },
     integerLiteral (s, i) {
         return `${s.sourceString}${i.sourceString}`;
