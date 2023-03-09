@@ -8667,9 +8667,10 @@ Sl {
 	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$"
 
 	literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
-	numberLiteral = floatLiteral | fractionLiteral | integerLiteral
+	numberLiteral = floatLiteral | fractionLiteral | largeIntegerLiteral | integerLiteral
 	floatLiteral = "-"? digit+ "." digit+
 	fractionLiteral = "-"? digit+ ":" digit+
+	largeIntegerLiteral = "-"? digit+ "n"
 	integerLiteral = "-"? digit+
 	singleQuotedStringLiteral = "\'" (~"\'" sourceCharacter)* "\'"
 	doubleQuotedStringLiteral = "\"" (~"\"" sourceCharacter)* "\""
@@ -8956,8 +8957,11 @@ const asJs = {
     floatLiteral (s, i, _, f) {
         return `${s.sourceString}${i.sourceString}.${f.sourceString}`;
     },
-    fractionLiteral (s, i, _, f) {
-        return `_normalized_1(_Fraction_2(${s.sourceString}${i.sourceString}, ${f.sourceString}))`;
+    fractionLiteral (s, n, _colon, d) {
+        return `_normalized_1(_Fraction_2(${s.sourceString}${n.sourceString}, ${d.sourceString}))`;
+    },
+    largeIntegerLiteral (s, i, _n) {
+        return `${s.sourceString}${i.sourceString}n`;
     },
     integerLiteral (s, i) {
         return `${s.sourceString}${i.sourceString}`;
@@ -9469,6 +9473,30 @@ function methodName(name) {
 function arrayCheckIndex(anArray, anInteger) {
     return Number.isInteger(anInteger) && anInteger >= 0 && anInteger < anArray.length;
 }
+function bigIntSqrt(anInteger) {
+    if (anInteger < 2n) {
+        return anInteger;
+    }
+    if (anInteger < 16n) {
+        return BigInt(Math.sqrt(Number(anInteger)) | 0);
+    }
+    let x0, x1;
+    if (anInteger < 4503599627370496n) {
+        x1 = BigInt(Math.sqrt(Number(anInteger)) | 0) - 3n;
+    } else {
+        let vlen = anInteger.toString().length;
+        if (!(vlen & 1)) {
+            x1 = 10n ** BigInt(vlen / 2);
+        } else {
+            x1 = 4n * 10n ** BigInt(vlen / 2 | 0);
+        }
+    }
+    do {
+        x0 = x1;
+        x1 = anInteger / x0 + x0 >> 1n;
+    }while (x0 !== x1 && x0 !== x1 - 1n)
+    return x0;
+}
 function assignGlobals() {
     globalThis._inf = Infinity;
     globalThis._constant = new Map();
@@ -9505,6 +9533,7 @@ export { addType as addType };
 export { shiftRight as shiftRight };
 export { methodName as methodName };
 export { arrayCheckIndex as arrayCheckIndex };
+export { bigIntSqrt as bigIntSqrt };
 export { assignGlobals as assignGlobals };
 const loader = {
     loadPath: ''
