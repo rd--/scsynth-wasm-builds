@@ -9274,6 +9274,7 @@ class System {
     categoryDictionary;
     nextUniqueId;
     window;
+    library;
     constructor(){
         this.methodDictionary = new Map();
         this.traitDictionary = new Map();
@@ -9286,6 +9287,7 @@ class System {
         this.categoryDictionary = new Map();
         this.nextUniqueId = 1;
         this.window = window;
+        this.library = new Map();
     }
 }
 const system = new System();

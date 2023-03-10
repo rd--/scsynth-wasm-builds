@@ -1165,11 +1165,29 @@ function oscString(x) {
 function oscBlob(x) {
     return oscData('b', x);
 }
+function decodeOscMessage(packet) {
+    return osc.readPacket(packet, {
+        metadata: true
+    });
+}
+function encodeOscPacket(packet) {
+    return osc.writePacket(packet, {
+        metadata: true
+    });
+}
+function encodeOscMessage(message) {
+    return osc.writePacket(message, {
+        metadata: true
+    });
+}
 export { oscData as oscData };
 export { oscInt32 as oscInt32 };
 export { oscFloat as oscFloat };
 export { oscString as oscString };
 export { oscBlob as oscBlob };
+export { decodeOscMessage as decodeOscMessage };
+export { encodeOscPacket as encodeOscPacket };
+export { encodeOscMessage as encodeOscMessage };
 function isQueue(aValue) {
     return aValue.typeString === 'queue';
 }
@@ -5211,21 +5229,6 @@ export { KeyState as KeyState };
 export { MouseButton as MouseButton };
 export { MouseX as MouseX };
 export { MouseY as MouseY };
-function decodeServerMessage(packet) {
-    return osc.readPacket(packet, {
-        metadata: true
-    });
-}
-function encodeServerPacket(message) {
-    return osc.writePacket(message, {
-        metadata: true
-    });
-}
-function encodeServerMessage(message) {
-    return osc.writePacket(message, {
-        metadata: true
-    });
-}
 const kAddToHead = 0;
 const kAddToTail = 1;
 function b_alloc_then(bufferNumber, numberOfFrames, numberOfChannels, onCompletion) {
@@ -5257,7 +5260,7 @@ function b_alloc_then_memcpy(bufferNumber, numberOfFrames, numberOfChannels, sam
     if (allocBytes != bufferData.length) {
         console.error('b_alloc_then_memcpy: array size error', allocBytes, bufferData.length);
     }
-    return b_alloc_then(bufferNumber, numberOfFrames, numberOfChannels, encodeServerPacket(b_memcpy(bufferNumber, numberOfFrames, numberOfChannels, sampleRate, bufferData)));
+    return b_alloc_then(bufferNumber, numberOfFrames, numberOfChannels, encodeOscPacket(b_memcpy(bufferNumber, numberOfFrames, numberOfChannels, sampleRate, bufferData)));
 }
 function b_getn1(bufferNumber, startIndex, count) {
     return {
@@ -5359,6 +5362,13 @@ function m_notify(status, clientId) {
         ]
     };
 }
+function m_parseStatusReply(msg, status) {
+    if (msg.address === '/status.reply') {
+        status.ugenCount = msg.args[1].value;
+    } else {
+        throw `m_statusReply: not /status.reply: ${msg.address}`;
+    }
+}
 function s_new0(name, nodeId, addAction, target) {
     return {
         address: '/s_new',
@@ -5370,9 +5380,6 @@ function s_new0(name, nodeId, addAction, target) {
         ]
     };
 }
-export { decodeServerMessage as decodeServerMessage };
-export { encodeServerPacket as encodeServerPacket };
-export { encodeServerMessage as encodeServerMessage };
 export { kAddToHead as kAddToHead };
 export { kAddToTail as kAddToTail };
 export { b_alloc_then as b_alloc_then };
@@ -5391,6 +5398,7 @@ export { g_freeAll1 as g_freeAll1 };
 export { m_status as m_status };
 export { m_dumpOsc as m_dumpOsc };
 export { m_notify as m_notify };
+export { m_parseStatusReply as m_parseStatusReply };
 export { s_new0 as s_new0 };
 function audiobuffer_to_scsynth_buffer(scSynth, audioBuffer, bufferNumber, numberOfChannels, bufferData) {
     const numberOfFrames = audioBuffer.length;
@@ -5803,18 +5811,18 @@ class ScSynth {
     options;
     boot;
     sendOsc;
-    monitorDisplay;
+    oscListeners;
     isAlive;
     isStarting;
     hasIoUgens;
     synthPort;
     langPort;
     status;
-    constructor(options, boot, sendOsc, monitorDisplay){
+    constructor(options, boot, sendOsc){
         this.options = options;
         this.boot = boot;
         this.sendOsc = sendOsc;
-        this.monitorDisplay = monitorDisplay;
+        this.oscListeners = new Map();
         this.isAlive = false;
         this.isStarting = false;
         this.synthPort = 57110;
@@ -5824,6 +5832,28 @@ class ScSynth {
             ugenCount: 0
         };
     }
+}
+function scSynthAddOscListener(scSynth, address, handler) {
+    if (scSynth.oscListeners.has(address)) {
+        scSynth.oscListeners.get(address).add(handler);
+    } else {
+        scSynth.oscListeners.set(address, new Set([
+            handler
+        ]));
+    }
+}
+function scSynthRemoveOscListener(scSynth, address, handler) {
+    scSynth.oscListeners.get(address).delete(handler);
+}
+function scSynthInitStatusTextListener(scSynth, nilText) {
+    let setText = setter_for_inner_html_of('statusText');
+    setInterval(function() {
+        if (scSynth.isAlive) {
+            setText(scSynth.status.ugenCount.toString());
+        } else {
+            setText(nilText);
+        }
+    });
 }
 function scSynthEnsure(scSynth, activity) {
     if (scSynth.isAlive) {
@@ -5839,7 +5869,7 @@ function scSynthEnsure(scSynth, activity) {
 }
 function playSynDef(scSynth, synDefName, synDefData, groupId) {
     console.log('playSynDef #', synDefData.length);
-    scSynth.sendOsc(d_recv_then(synDefData, encodeServerMessage(s_new0(synDefName, -1, 1, groupId))));
+    scSynth.sendOsc(d_recv_then(synDefData, encodeOscMessage(s_new0(synDefName, -1, 1, groupId))));
 }
 function playUgen(scSynth, ugenGraph, groupId) {
     const synDefName = 'anonymous';
@@ -5889,6 +5919,9 @@ function setPointerControls(scSynth, n, w, x, y) {
     }
 }
 export { ScSynth as ScSynth };
+export { scSynthAddOscListener as scSynthAddOscListener };
+export { scSynthRemoveOscListener as scSynthRemoveOscListener };
+export { scSynthInitStatusTextListener as scSynthInitStatusTextListener };
 export { scSynthEnsure as scSynthEnsure };
 export { playSynDef as playSynDef };
 export { playUgen as playUgen };
@@ -5916,15 +5949,23 @@ function sc3_mouse_init(scsynth) {
     document.onmouseup = recv_document_mouse_event;
 }
 export { sc3_mouse_init as sc3_mouse_init };
-const scSynthDefaultOptions = {
-    numInputs: 2,
-    numOutputs: 2,
-    hardwareBufferSize: 8192,
-    blockSize: 48
-};
+class ScSynthOptions {
+    hardwareBufferSize;
+    blockSize;
+    numInputs;
+    numOutputs;
+    constructor(hardwareBufferSize, blockSize, numInputs, numOutputs){
+        this.hardwareBufferSize = hardwareBufferSize;
+        this.blockSize = blockSize;
+        this.numInputs = numInputs;
+        this.numOutputs = numOutputs;
+    }
+}
+const scSynthDefaultOptions = new ScSynthOptions(8192, 48, 2, 2);
 function scSynthOptionsPrint(options) {
     console.log('-i', options.numInputs, '-o', options.numOutputs, '-Z', options.hardwareBufferSize, '-z', options.blockSize);
 }
+export { ScSynthOptions as ScSynthOptions };
 export { scSynthDefaultOptions as scSynthDefaultOptions };
 export { scSynthOptionsPrint as scSynthOptionsPrint };
 function initScSynthWasmModule(Module, logFunction, displayFunction) {
@@ -5949,8 +5990,8 @@ function initScSynthWasmModule(Module, logFunction, displayFunction) {
     };
 }
 export { initScSynthWasmModule as initScSynthWasmModule };
-function scsynthWasm(options, wasm, status) {
-    const scsynth = new ScSynth(options, ()=>bootScSynthWasm(scsynth, wasm), (oscPacket)=>sendOscWasm(scsynth, wasm, oscPacket), status);
+function scsynthWasm(options, wasm) {
+    const scsynth = new ScSynth(options, ()=>bootScSynthWasm(scsynth, wasm), (oscPacket)=>sendOscWasm(scsynth, wasm, oscPacket));
     return scsynth;
 }
 function sendOscWasm(scsynth, wasm, oscPacket) {
@@ -5958,7 +5999,7 @@ function sendOscWasm(scsynth, wasm, oscPacket) {
         const port = wasm.oscDriver[scsynth.synthPort];
         const recv = port && port.receive;
         if (recv) {
-            recv(scsynth.langPort, encodeServerPacket(oscPacket));
+            recv(scsynth.langPort, encodeOscPacket(oscPacket));
         } else {
             console.warn('sendOscWasm: recv?');
         }
@@ -5995,11 +6036,16 @@ function monitorOscWasm(scsynth, wasm) {
                 scsynth.isAlive = true;
                 initGroupStructure(scsynth);
             }
-            const msg = decodeServerMessage(data);
+            const msg = decodeOscMessage(data);
+            scsynth.oscListeners.forEach(function(value, key) {
+                if (msg.address === key) {
+                    value.forEach(function(handler) {
+                        handler(msg);
+                    });
+                }
+            });
             if (msg.address === '/status.reply') {
-                const ugenCount = msg.args[1].value;
-                scsynth.status.ugenCount = ugenCount;
-                scsynth.monitorDisplay('# ' + ugenCount);
+                m_parseStatusReply(msg, scsynth.status);
             } else if (msg.address === '/done') {
                 console.log('/done', msg.args[0]);
             } else {
@@ -6016,8 +6062,8 @@ if (globalThis.Module !== undefined) {
         return null;
     });
 }
-function sc3_wasm_init(showStatus) {
-    globalThis.globalScSynth = scsynthWasm(scSynthDefaultOptions, globalThis.Module, showStatus);
+function sc3_wasm_init() {
+    globalThis.globalScSynth = scsynthWasm(scSynthDefaultOptions, globalThis.Module);
     globalThis.onerror = function(event) {
         consoleLogMessageFrom('globalThis.onerror', String(event));
     };
