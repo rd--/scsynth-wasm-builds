@@ -5362,9 +5362,26 @@ function m_notify(status, clientId) {
         ]
     };
 }
+const defaultScSynthStatus = {
+    ugenCount: 0,
+    synthCount: 0,
+    groupCount: 0,
+    synthdefCount: 0,
+    cpuAverage: 0,
+    cpuPeak: 0,
+    sampleRateNominal: 48000,
+    sampleRateActual: 48000
+};
 function m_parseStatusReply(msg, status) {
     if (msg.address === '/status.reply') {
         status.ugenCount = msg.args[1].value;
+        status.synthCount = msg.args[2].value;
+        status.groupCount = msg.args[3].value;
+        status.synthdefCount = msg.args[4].value;
+        status.cpuAverage = msg.args[5].value;
+        status.cpuPeak = msg.args[6].value;
+        status.sampleRateNominal = msg.args[7].value;
+        status.sampleRateActual = Math.round(msg.args[8].value);
     } else {
         throw `m_statusReply: not /status.reply: ${msg.address}`;
     }
@@ -5398,6 +5415,7 @@ export { g_freeAll1 as g_freeAll1 };
 export { m_status as m_status };
 export { m_dumpOsc as m_dumpOsc };
 export { m_notify as m_notify };
+export { defaultScSynthStatus as defaultScSynthStatus };
 export { m_parseStatusReply as m_parseStatusReply };
 export { s_new0 as s_new0 };
 function audiobuffer_to_scsynth_buffer(scSynth, audioBuffer, bufferNumber, numberOfChannels, bufferData) {
@@ -5828,9 +5846,7 @@ class ScSynth {
         this.synthPort = 57110;
         this.langPort = 57120;
         this.hasIoUgens = false;
-        this.status = {
-            ugenCount: 0
-        };
+        this.status = defaultScSynthStatus;
     }
 }
 function scSynthAddOscListener(scSynth, address, handler) {
