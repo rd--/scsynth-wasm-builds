@@ -1,7 +1,3 @@
-// deno-fmt-ignore-file
-// deno-lint-ignore-file
-// This code was bundled using `deno bundle` and it's not recommended to edit it manually
-
 function isArray(aValue) {
     return Array.isArray(aValue);
 }
@@ -5984,25 +5980,21 @@ function scSynthOptionsPrint(options) {
 export { ScSynthOptions as ScSynthOptions };
 export { scSynthDefaultOptions as scSynthDefaultOptions };
 export { scSynthOptionsPrint as scSynthOptionsPrint };
-function initScSynthWasmModule(Module, logFunction, displayFunction) {
-    Module.preRun = [];
-    Module.postRun = [];
-    Module.print = function(text) {
-        logFunction('wasm/print', text);
+function initScSynthWasmModule(scSynthModule, logFunction) {
+    scSynthModule.preRun = [];
+    scSynthModule.postRun = [];
+    scSynthModule.print = function(text) {
+        logFunction(`wasm/print:  ${text}`);
     };
-    Module.printErr = function(text) {
-        logFunction('wasm/error', text);
+    scSynthModule.printErr = function(text) {
+        logFunction(`wasm/error: ${text}`);
     };
-    Module.totalDependencies = 0;
-    Module.monitorRunDependencies = function(left) {
-        logFunction('wasm/monitorRunDependencies', '# ' + String(left));
-        if (left > 0) {
-            displayFunction("Loading...");
-        }
+    scSynthModule.totalDependencies = 0;
+    scSynthModule.monitorRunDependencies = function(left) {
+        logFunction(`wasm/monitorRunDependencies: # ${String(left)}`);
     };
-    Module.onRuntimeInitialized = function() {
-        logFunction('wasm/onRuntimeInitialized', '...');
-        displayFunction("&nbsp;");
+    scSynthModule.onRuntimeInitialized = function() {
+        logFunction('wasm/onRuntimeInitialized: ...');
     };
 }
 export { initScSynthWasmModule as initScSynthWasmModule };
@@ -6074,14 +6066,12 @@ export { scsynthWasm as scsynthWasm };
 export { sendOscWasm as sendOscWasm };
 export { bootScSynthWasm as bootScSynthWasm };
 if (globalThis.Module !== undefined) {
-    initScSynthWasmModule(globalThis.Module, consoleLogMessageFrom, function(_text) {
-        return null;
-    });
+    initScSynthWasmModule(globalThis.Module, consoleLog);
 }
 function sc3_wasm_init() {
     globalThis.globalScSynth = scsynthWasm(scSynthDefaultOptions, globalThis.Module);
     globalThis.onerror = function(event) {
-        consoleLogMessageFrom('globalThis.onerror', String(event));
+        consoleLog(`globalThis.onerror: ${String(event)}`);
     };
 }
 export { sc3_wasm_init as sc3_wasm_init };
@@ -6342,3 +6332,5 @@ function XFadeTexture(graphFunc, sustainTime, transitionTime) {
 }
 export { OverlapTexture as OverlapTexture };
 export { XFadeTexture as XFadeTexture };
+
+

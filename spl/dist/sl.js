@@ -1,7 +1,3 @@
-// deno-fmt-ignore-file
-// deno-lint-ignore-file
-// This code was bundled using `deno bundle` and it's not recommended to edit it manually
-
 function load_utf8(url) {
     return fetch(url, {
         cache: 'no-cache'
@@ -9267,6 +9263,37 @@ const preinstalledTypes = [
     'String',
     'Void'
 ];
+class Transcript {
+    entries;
+    constructor(){
+        this.entries = [];
+    }
+    error(text) {
+        this.entries.push([
+            'error',
+            text
+        ]);
+        console.error(text);
+    }
+    clear() {
+        this.entries = [];
+        console.clear();
+    }
+    log(text) {
+        this.entries.push([
+            'log',
+            text
+        ]);
+        console.log(text);
+    }
+    warn(text) {
+        this.entries.push([
+            'warn',
+            text
+        ]);
+        console.warn(text);
+    }
+}
 class System {
     methodDictionary;
     traitDictionary;
@@ -9275,6 +9302,7 @@ class System {
     nextUniqueId;
     window;
     library;
+    transcript;
     constructor(){
         this.methodDictionary = new Map();
         this.traitDictionary = new Map();
@@ -9288,6 +9316,7 @@ class System {
         this.nextUniqueId = 1;
         this.window = window;
         this.library = new Map();
+        this.transcript = new Transcript();
     }
 }
 const system = new System();
@@ -9517,6 +9546,7 @@ export { isByte as isByte };
 export { Method as Method };
 export { Trait as Trait };
 export { Type as Type };
+export { Transcript as Transcript };
 export { System as System };
 export { system as system };
 export { addTrait as addTrait };
