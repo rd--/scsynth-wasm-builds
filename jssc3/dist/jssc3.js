@@ -1161,18 +1161,23 @@ function oscString(x) {
 function oscBlob(x) {
     return oscData('b', x);
 }
-function decodeOscMessage(packet) {
-    return osc.readPacket(packet, {
+function decodeOscMessage(message) {
+    return osc.readMessage(message, {
+        metadata: true
+    });
+}
+function encodeOscMessage(message) {
+    return osc.writeMessage(message, {
+        metadata: true
+    });
+}
+function encodeOscBundle(bundle) {
+    return osc.writeBundle(bundle, {
         metadata: true
     });
 }
 function encodeOscPacket(packet) {
     return osc.writePacket(packet, {
-        metadata: true
-    });
-}
-function encodeOscMessage(message) {
-    return osc.writePacket(message, {
         metadata: true
     });
 }
@@ -1182,8 +1187,9 @@ export { oscFloat as oscFloat };
 export { oscString as oscString };
 export { oscBlob as oscBlob };
 export { decodeOscMessage as decodeOscMessage };
-export { encodeOscPacket as encodeOscPacket };
 export { encodeOscMessage as encodeOscMessage };
+export { encodeOscBundle as encodeOscBundle };
+export { encodeOscPacket as encodeOscPacket };
 function isQueue(aValue) {
     return aValue.typeString === 'queue';
 }
@@ -2811,10 +2817,20 @@ function LfClipNoise(freq) {
         freq
     ]);
 }
+function LfdClipNoise(freq) {
+    return makeUgen('LFDClipNoise', 1, 2, 0, [
+        freq
+    ]);
+}
 function LfCub(freq, iphase) {
     return makeUgen('LFCub', 1, 2, 0, [
         freq,
         iphase
+    ]);
+}
+function LfdNoise0(freq) {
+    return makeUgen('LFDNoise0', 1, 2, 0, [
+        freq
     ]);
 }
 function LfdNoise1(freq) {
@@ -4431,7 +4447,9 @@ export { Latch as Latch };
 export { LatoocarfianC as LatoocarfianC };
 export { LeakDc as LeakDc };
 export { LfClipNoise as LfClipNoise };
+export { LfdClipNoise as LfdClipNoise };
 export { LfCub as LfCub };
+export { LfdNoise0 as LfdNoise0 };
 export { LfdNoise1 as LfdNoise1 };
 export { LfdNoise3 as LfdNoise3 };
 export { LfGauss as LfGauss };
@@ -5845,6 +5863,7 @@ class ScSynth {
         this.status = defaultScSynthStatus;
     }
 }
+const synthdefCounter = counterNew();
 function scSynthAddOscListener(scSynth, address, handler) {
     if (scSynth.oscListeners.has(address)) {
         scSynth.oscListeners.get(address).add(handler);
@@ -5879,17 +5898,28 @@ function scSynthEnsure(scSynth, activity) {
         setTimeout(()=>scSynthEnsure(scSynth, activity), 1000);
     }
 }
-function playSynDef(scSynth, synDefName, synDefData, groupId) {
-    console.log('playSynDef #', synDefData.length);
-    scSynth.sendOsc(d_recv_then(synDefData, encodeOscMessage(s_new0(synDefName, -1, 1, groupId))));
+function playSynDefAt(scSynth, synDefName, synDefData, groupId, systemTimeInSeconds) {
+    if (systemTimeInSeconds == null) {
+        scSynth.sendOsc(d_recv_then(synDefData, encodeOscMessage(s_new0(synDefName, -1, 1, groupId))));
+    } else {
+        const unixTimeInMilliseconds = performance.timeOrigin + systemTimeInSeconds * 1000;
+        scSynth.sendOsc(d_recv_then(synDefData, encodeOscBundle({
+            timeTag: {
+                native: unixTimeInMilliseconds
+            },
+            packets: [
+                s_new0(synDefName, -1, 1, groupId)
+            ]
+        })));
+    }
 }
-function playUgen(scSynth, ugenGraph, groupId) {
-    const synDefName = 'anonymous';
-    const synDef = encodeUgen(synDefName, wrapOut(0, ugenGraph));
-    playSynDef(scSynth, synDefName, synDef, groupId);
+function playUgenAt(scSynth, ugenGraph, groupId, systemTimeInSeconds) {
+    const synDefName = 'anonymous_' + synthdefCounter();
+    const synDefData = encodeUgen(synDefName, wrapOut(0, ugenGraph));
+    playSynDefAt(scSynth, synDefName, synDefData, groupId, systemTimeInSeconds);
 }
-function playProcedure(scSynth, ugenFunction, groupId) {
-    playUgen(scSynth, ugenFunction(), groupId);
+function playProcedureAt(scSynth, ugenFunction, groupId, systemTimeInSeconds) {
+    playUgenAt(scSynth, ugenFunction(), groupId, systemTimeInSeconds);
 }
 function initGroupStructure(scSynth) {
     scSynth.sendOsc(g_new([
@@ -5935,9 +5965,9 @@ export { scSynthAddOscListener as scSynthAddOscListener };
 export { scSynthRemoveOscListener as scSynthRemoveOscListener };
 export { scSynthInitStatusTextListener as scSynthInitStatusTextListener };
 export { scSynthEnsure as scSynthEnsure };
-export { playSynDef as playSynDef };
-export { playUgen as playUgen };
-export { playProcedure as playProcedure };
+export { playSynDefAt as playSynDefAt };
+export { playUgenAt as playUgenAt };
+export { playProcedureAt as playProcedureAt };
 export { initGroupStructure as initGroupStructure };
 export { resetScSynth as resetScSynth };
 export { requestStatus as requestStatus };
@@ -6332,5 +6362,4 @@ function XFadeTexture(graphFunc, sustainTime, transitionTime) {
 }
 export { OverlapTexture as OverlapTexture };
 export { XFadeTexture as XFadeTexture };
-
 

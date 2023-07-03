@@ -8580,7 +8580,9 @@ Sl {
 
 	ExpressionSequence = ListOf<Expression, ";">
 	Expression = Assignment | BinaryExpression | Primary
-	Assignment = identifier ":=" Expression
+	Assignment = ScalarAssignment | ArrayAssignment
+	ScalarAssignment = identifier ":=" Expression
+	ArrayAssignment = "["  NonemptyListOf<identifier, ","> "]" ":=" Expression
 	BinaryExpression = Expression (binaryOperator Primary)+
 
 	Primary
@@ -8668,8 +8670,8 @@ Sl {
 	fractionLiteral = "-"? digit+ ":" digit+
 	largeIntegerLiteral = "-"? digit+ "n"
 	integerLiteral = "-"? digit+
-	singleQuotedStringLiteral = "\'" (~"\'" sourceCharacter)* "\'"
-	doubleQuotedStringLiteral = "\"" (~"\"" sourceCharacter)* "\""
+	singleQuotedStringLiteral = "\'" (~"\'" ("\\\'" | sourceCharacter))* "\'"
+	doubleQuotedStringLiteral = "\"" (~"\"" ("\\\"" | sourceCharacter))* "\""
 	backtickQuotedStringLiteral = backtickCharacter (~backtickCharacter sourceCharacter)* backtickCharacter
 	backtickCharacter = "${String.fromCodePoint(96)}"
 	sourceCharacter = any
@@ -8784,8 +8786,15 @@ const asJs = {
     TemporariesVarSyntax (_var, tmp, _semicolon) {
         return `var ${commaList(tmp.asIteration().children)};`;
     },
-    Assignment (lhs, _colonEquals, rhs) {
+    ScalarAssignment (lhs, _colonEquals, rhs) {
         return `${lhs.asJs} = ${rhs.asJs}`;
+    },
+    ArrayAssignment (_leftBracket, lhs, _rightBracket, _colonEquals, rhs) {
+        const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
+        gensym();
+        const rhsArrayName = gensym();
+        const slots = namesArray.map((name, index)=>`_${name} = _${genName('at', 2)}(${rhsArrayName}, ${index + 1})`).join('; ');
+        return `(function() { var ${rhsArrayName} = ${rhs.asJs}; ${slots}; })()`;
     },
     BinaryExpression (lhs, ops, rhs) {
         let left = lhs.asJs;
@@ -9143,7 +9152,7 @@ const operatorNameTable = {
     '/': 'dividedBy',
     '&': 'and',
     '|': 'or',
-    '@': 'at',
+    '@': 'commercialAt',
     '<': 'lessThan',
     '>': 'greaterThan',
     '=': 'equals',
@@ -9170,16 +9179,16 @@ export { isOperatorName as isOperatorName };
 export { operatorNameTable as operatorNameTable };
 export { operatorMethodName as operatorMethodName };
 export { PriorityQueue as PriorityQueue };
-function isStringDictionary(anObject) {
+function isRecord(anObject) {
     const c = anObject.constructor;
     return c === undefined || c.name === 'Object';
 }
 function objectType(anObject) {
-    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'IdentityDictionary' : anObject instanceof Set ? 'IdentitySet' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject._type || (isStringDictionary(anObject) ? 'StringDictionary' : anObject.constructor.name);
+    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'Map' : anObject instanceof Set ? 'Set' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject._type || (isRecord(anObject) ? 'Record' : anObject.constructor.name);
 }
 function typeOf(anObject) {
     if (anObject === null || anObject === undefined) {
-        return 'UndefinedObject';
+        return 'Nil';
     } else {
         switch(typeof anObject){
             case 'boolean':
@@ -9212,7 +9221,7 @@ function isFunction(anObject) {
 function isSmallFloat(anObject) {
     return typeof anObject === 'number';
 }
-function isIdentitySet(anObject) {
+function isSet(anObject) {
     return anObject instanceof Set;
 }
 function isString(anObject) {
@@ -9260,6 +9269,7 @@ class Type {
 }
 const preinstalledTypes = [
     'Array',
+    'SmallFloat',
     'String',
     'Void'
 ];
@@ -9330,10 +9340,10 @@ function methodExists(methodName) {
     return system.methodDictionary.has(methodName);
 }
 function addTrait(traitName) {
-    if (!traitExists(traitName)) {
-        system.traitDictionary.set(traitName, new Trait(traitName));
-    } else {
+    if (traitExists(traitName)) {
         throw `addTrait: trait exists: ${traitName}`;
+    } else {
+        system.traitDictionary.set(traitName, new Trait(traitName));
     }
 }
 function addTraitMethod(traitName, methodName, arity, procedure, sourceCode) {
@@ -9502,7 +9512,7 @@ function methodName(name) {
     return isOperatorName(name) ? operatorMethodName(name) : name;
 }
 function arrayCheckIndex(anArray, anInteger) {
-    return Number.isInteger(anInteger) && anInteger >= 0 && anInteger < anArray.length;
+    return Number.isInteger(anInteger) && anInteger >= 1 && anInteger <= anArray.length;
 }
 function bigIntSqrt(anInteger) {
     if (anInteger < 2n) {
@@ -9540,7 +9550,7 @@ export { isArray as isArray };
 export { isByteArray as isByteArray };
 export { isFunction as isFunction };
 export { isSmallFloat as isSmallFloat };
-export { isIdentitySet as isIdentitySet };
+export { isSet as isSet };
 export { isString as isString };
 export { isByte as isByte };
 export { Method as Method };
@@ -9606,3 +9616,4 @@ export { loadUrl as loadUrl };
 export { loadUrlSequence as loadUrlSequence };
 export { loadUrlArrayInSequence as loadUrlArrayInSequence };
 export { addLoadUrlMethods as addLoadUrlMethods };
+
