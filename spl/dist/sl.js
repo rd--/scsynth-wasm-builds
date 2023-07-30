@@ -1,14 +1,3 @@
-function load_utf8(url) {
-    return fetch(url, {
-        cache: 'no-cache'
-    }).then(handle_fetch_error).then((response)=>response.text()).catch((reason)=>`load_utf8: ${url}: ${reason}`);
-}
-function handle_fetch_error(response) {
-    if (!response.ok) {
-        throw Error(response.statusText);
-    }
-    return response;
-}
 function arraySum(anArray) {
     return anArray.reduce((lhs, rhs)=>lhs + rhs, 0);
 }
@@ -8564,7 +8553,7 @@ Sl {
 	TraitDefinition = "@" identifier "{" (methodName Block)* "}"
 	ConstantDefinition = unqualifiedIdentifier "=" literal
 	Program = Temporaries? ExpressionSequence
-	Temporaries = TemporariesWithInitializers | TemporariesWithoutInitializers | TemporariesVarSyntax+
+	Temporaries = TemporariesWithInitializers | TemporariesWithoutInitializers | TemporariesParenSyntax | TemporariesVarWithoutInitializersSyntax | TemporariesVarWithInitializersSyntax+
 	TemporariesWithInitializers = "|" NonemptyListOf<TemporaryWithInitializer, ","> ";" "|"
 	TemporaryWithInitializer =
 		TemporaryWithBlockLiteralInitializer |
@@ -8576,21 +8565,26 @@ Sl {
 	TemporaryWithDictionaryInitializer = "("  NonemptyListOf<identifier, ","> ")" "=" Expression
 	TemporaryWithArrayInitializer = "["  NonemptyListOf<identifier, ","> "]" "=" Expression
 	TemporariesWithoutInitializers = "|" identifier+ "|"
-	TemporariesVarSyntax = "var" NonemptyListOf<(TemporaryWithInitializer | identifier), ","> ";"
+	TemporariesParenSyntax = "|(" NonemptyListOf<TemporaryWithInitializer, ","> ")|"
+	TemporariesVarWithoutInitializersSyntax = "var" NonemptyListOf<identifier, ","> ";"
+	TemporariesVarWithInitializersSyntax = "var" NonemptyListOf<TemporaryWithInitializer, ","> ";"
 
 	ExpressionSequence = ListOf<Expression, ";">
 	Expression = Assignment | BinaryExpression | Primary
-	Assignment = ScalarAssignment | ArrayAssignment
+	Assignment = ScalarAssignment | ArrayAssignment | DictionaryAssignment
 	ScalarAssignment = identifier ":=" Expression
-	ArrayAssignment = "["  NonemptyListOf<identifier, ","> "]" ":=" Expression
+	ArrayAssignment = "[" NonemptyListOf<identifier, ","> "]" ":=" Expression
+	DictionaryAssignment = "(" NonemptyListOf<identifier, ","> ")" ":=" Expression
 	BinaryExpression = Expression (binaryOperator Primary)+
 
 	Primary
 		= AtPutSyntax
 		| AtPutQuotedSyntax
 		| AtPutDelegateSyntax
+		| WriteSlotSyntax
 		| AtSyntax
 		| AtQuotedSyntax
+		| ReadSlotSyntax
 		| ValueApply
 		| DotExpressionWithTrailingClosuresSyntax
 		| DotExpressionWithTrailingDictionariesSyntax
@@ -8620,6 +8614,8 @@ Sl {
 	AtQuotedSyntax = Primary "::" identifier
 	AtPutDelegateSyntax = Primary ":." identifier ":=" Expression
 	MessageSendSyntax = Primary ":." identifier NonEmptyParameterList?
+	ReadSlotSyntax = Primary ":@" identifier
+	WriteSlotSyntax = Primary ":@" identifier ":=" Expression
 	ValueApply = Primary "." ParameterList
 	ParameterList =  "(" ListOf<Expression, ","> ")"
 	NonEmptyParameterList =  "(" NonemptyListOf<Expression, ","> ")"
@@ -8665,10 +8661,11 @@ Sl {
 	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$"
 
 	literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
-	numberLiteral = floatLiteral | fractionLiteral | largeIntegerLiteral | integerLiteral
+	numberLiteral = floatLiteral | fractionLiteral | largeIntegerLiteral | radixIntegerLiteral | integerLiteral
 	floatLiteral = "-"? digit+ "." digit+
 	fractionLiteral = "-"? digit+ ":" digit+
 	largeIntegerLiteral = "-"? digit+ "n"
+	radixIntegerLiteral = "-"? digit+ "r" letterOrDigit+
 	integerLiteral = "-"? digit+
 	singleQuotedStringLiteral = "\'" (~"\'" ("\\\'" | sourceCharacter))* "\'"
 	doubleQuotedStringLiteral = "\"" (~"\"" ("\\\"" | sourceCharacter))* "\""
@@ -8755,7 +8752,7 @@ const asJs = {
     Program (tmp, stm) {
         return tmp.asJs + stm.asJs;
     },
-    TemporariesWithInitializers (_verticalBar1, tmp, _commas, _verticalBar2) {
+    TemporariesWithInitializers (_verticalBar1, tmp, _semiColon, _verticalBar2) {
         return `var ${commaList(tmp.asIteration().children)};`;
     },
     TemporaryWithBlockLiteralInitializer (nm, _equals, blk) {
@@ -8783,7 +8780,13 @@ const asJs = {
     TemporariesWithoutInitializers (_verticalBar1, tmp, _verticalBar2) {
         return `var ${commaList(tmp.children)};`;
     },
-    TemporariesVarSyntax (_var, tmp, _semicolon) {
+    TemporariesParenSyntax (_leftParen, tmp, _rightParen) {
+        return `var ${commaList(tmp.asIteration().children)};`;
+    },
+    TemporariesVarWithoutInitializersSyntax (_var, tmp, _semicolon) {
+        return `var ${commaList(tmp.asIteration().children)};`;
+    },
+    TemporariesVarWithInitializersSyntax (_var, tmp, _semicolon) {
         return `var ${commaList(tmp.asIteration().children)};`;
     },
     ScalarAssignment (lhs, _colonEquals, rhs) {
@@ -8791,10 +8794,15 @@ const asJs = {
     },
     ArrayAssignment (_leftBracket, lhs, _rightBracket, _colonEquals, rhs) {
         const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
-        gensym();
         const rhsArrayName = gensym();
         const slots = namesArray.map((name, index)=>`_${name} = _${genName('at', 2)}(${rhsArrayName}, ${index + 1})`).join('; ');
         return `(function() { var ${rhsArrayName} = ${rhs.asJs}; ${slots}; })()`;
+    },
+    DictionaryAssignment (_leftParen, lhs, _rightParen, _colonEquals, rhs) {
+        const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
+        const rhsDictionaryName = gensym();
+        const slots = namesArray.map((name, index)=>`_${name} = _${genName('at', 2)}(${rhsDictionaryName}, '${name}')`).join('; ');
+        return `(function() { var ${rhsDictionaryName} = ${rhs.asJs}; ${slots}; })()`;
     },
     BinaryExpression (lhs, ops, rhs) {
         let left = lhs.asJs;
@@ -8810,10 +8818,10 @@ const asJs = {
     AtPutSyntax (c, _leftBracket, k, _rightBracket, _equals, v) {
         return `_${genName('atPut', 3)}(${c.asJs}, ${k.asJs}, ${v.asJs})`;
     },
-    AtPutQuotedSyntax (c, _colonColon, k, _equals, v) {
+    AtPutQuotedSyntax (c, _colonColon, k, _colonEquals, v) {
         return `_${genName('atPut', 3)}(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
     },
-    AtPutDelegateSyntax (c, _colonDot, k, _equals, v) {
+    AtPutDelegateSyntax (c, _colonDot, k, _colonEquals, v) {
         return `_${genName('atPutDelegateTo', 4)}(${c.asJs}, '${k.sourceString}', ${v.asJs}, 'parent')`;
     },
     AtSyntax (c, _leftBracket, k, _rightBracket) {
@@ -8821,6 +8829,12 @@ const asJs = {
     },
     AtQuotedSyntax (c, _colonColon, k) {
         return `_${genName('at', 2)}(${c.asJs}, '${k.sourceString}')`;
+    },
+    ReadSlotSyntax (c, _colonArrow, k) {
+        return `${c.asJs}['${k.sourceString}']`;
+    },
+    WriteSlotSyntax (c, _colonArrow, k, _colonEquals, v) {
+        return `${c.asJs}['${k.sourceString}'] = ${v.asJs}`;
     },
     MessageSendSyntax (d, _colonDot, k, a) {
         return `_${genName('messageSend', 4)}(${d.asJs}, '${k.sourceString}', 'parent', [${a.children.map((c)=>c.asJs)}])`;
@@ -8933,13 +8947,13 @@ const asJs = {
         return `[${commaList(array.asIteration().children)}]`;
     },
     ArrayRangeSyntax (_leftBracket, start, _dotDot, end, _rightBracket) {
-        return `_${genName('asArray', 1)}(_${genName('to', 2)}(${start.asJs}, ${end.asJs}))`;
+        return `_${genName('asArray', 1)}(_${genName('upOrDownTo', 2)}(${start.asJs}, ${end.asJs}))`;
     },
     ArrayRangeThenSyntax (_leftBracket, start, _comma_, then, _dotDot, end, _rightBracket) {
         return `_${genName('asArray', 1)}(_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
     },
     IntervalSyntax (_leftParen, start, _dotDot, end, _rightParen) {
-        return `_${genName('to', 2)}(${start.asJs}, ${end.asJs})`;
+        return `_${genName('upOrDownTo', 2)}(${start.asJs}, ${end.asJs})`;
     },
     IntervalThenSyntax (_leftParen, start, _comma_, then, _dotDot, end, _rightParen) {
         return `_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs})`;
@@ -8967,6 +8981,9 @@ const asJs = {
     },
     largeIntegerLiteral (s, i, _n) {
         return `${s.sourceString}${i.sourceString}n`;
+    },
+    radixIntegerLiteral (s, b, _r, i) {
+        return `_assertIsSmallInteger_1(parseInt('${s.sourceString}${i.sourceString}', ${b.sourceString}))`;
     },
     integerLiteral (s, i) {
         return `${s.sourceString}${i.sourceString}`;
@@ -9048,27 +9065,35 @@ function rewriteString(str) {
     return answer;
 }
 export { rewriteString as rewriteString };
-function evaluateString(slStr) {
-    if (slStr.trim().length > 0) {
+function evaluateString(slString) {
+    if (slString.trim().length > 0) {
         try {
-            const jsStr = rewriteString(slStr);
-            if (jsStr.trim().length > 0) {
+            const jsString = rewriteString(slString);
+            if (jsString.trim().length > 0) {
                 try {
-                    return eval(jsStr);
+                    return eval(jsString);
                 } catch (err) {
-                    return console.error(`evaluateString: eval: ${err}: ${slStr}: ${jsStr}`);
+                    return console.error(`evaluateString: eval: ${err}: ${slString}: ${jsString}`);
                 }
             }
         } catch (err) {
-            return console.error(`evaluateString: rewrite: ${err}: ${slStr}`);
+            return console.error(`evaluateString: rewrite: ${err}: ${slString}`);
         }
     }
     return null;
 }
-async function evaluateUrl(urlString) {
-    await load_utf8(urlString).then(evaluateString);
+async function evaluateStringArrayInSequence(slStringArray) {
+    for (let slString of slStringArray){
+        await evaluateString(slString);
+    }
+}
+async function evaluateUrl(url) {
+    await fetch(url, {
+        cache: 'no-cache'
+    }).then((response)=>response.text()).then(evaluateString);
 }
 export { evaluateString as evaluateString };
+export { evaluateStringArrayInSequence as evaluateStringArrayInSequence };
 export { evaluateUrl as evaluateUrl };
 class PriorityQueue {
     constructor(){
@@ -9159,7 +9184,7 @@ const operatorNameTable = {
     '%': 'modulo',
     '!': 'bang',
     '\\': 'backslash',
-    '~': 'not',
+    '~': 'tilde',
     '?': 'query',
     '^': 'hat',
     '#': 'hash',
@@ -9221,6 +9246,9 @@ function isFunction(anObject) {
 function isSmallFloat(anObject) {
     return typeof anObject === 'number';
 }
+function isLargeInteger(anObject) {
+    return typeof anObject === 'bigint';
+}
 function isSet(anObject) {
     return anObject instanceof Set;
 }
@@ -9273,37 +9301,6 @@ const preinstalledTypes = [
     'String',
     'Void'
 ];
-class Transcript {
-    entries;
-    constructor(){
-        this.entries = [];
-    }
-    error(text) {
-        this.entries.push([
-            'error',
-            text
-        ]);
-        console.error(text);
-    }
-    clear() {
-        this.entries = [];
-        console.clear();
-    }
-    log(text) {
-        this.entries.push([
-            'log',
-            text
-        ]);
-        console.log(text);
-    }
-    warn(text) {
-        this.entries.push([
-            'warn',
-            text
-        ]);
-        console.warn(text);
-    }
-}
 class System {
     methodDictionary;
     traitDictionary;
@@ -9313,6 +9310,7 @@ class System {
     window;
     library;
     transcript;
+    cache;
     constructor(){
         this.methodDictionary = new Map();
         this.traitDictionary = new Map();
@@ -9326,7 +9324,8 @@ class System {
         this.nextUniqueId = 1;
         this.window = window;
         this.library = new Map();
-        this.transcript = new Transcript();
+        this.transcript = null;
+        this.cache = new Map();
     }
 }
 const system = new System();
@@ -9550,13 +9549,13 @@ export { isArray as isArray };
 export { isByteArray as isByteArray };
 export { isFunction as isFunction };
 export { isSmallFloat as isSmallFloat };
+export { isLargeInteger as isLargeInteger };
 export { isSet as isSet };
 export { isString as isString };
 export { isByte as isByte };
 export { Method as Method };
 export { Trait as Trait };
 export { Type as Type };
-export { Transcript as Transcript };
 export { System as System };
 export { system as system };
 export { addTrait as addTrait };
@@ -9588,32 +9587,25 @@ function resolveFileName(fileName) {
     console.log(`resolveFileName: ${resolvedName}`);
     return resolvedName;
 }
-async function loadUrl(fileName) {
-    await evaluateUrl(resolveFileName(fileName));
-}
-async function loadUrlSequence(fileNameArray) {
-    const resolvedFileNameArray = fileNameArray.map(resolveFileName);
-    const fetchedTextArray = await Promise.all(resolvedFileNameArray.map(load_utf8));
-    fetchedTextArray.forEach(evaluateString);
-}
-async function loadUrlArrayInSequence(loadPath, urlArray) {
-    setLoadPath(loadPath);
-    for (let url of urlArray){
-        await loadUrl(url);
-    }
+async function loadUrlSequence(urlArray) {
+    const resolvedUrlArray = urlArray.map(resolveFileName);
+    const fetchedTextArray = await Promise.all(resolvedUrlArray.map(function(url) {
+        return fetch(url, {
+            cache: 'no-cache'
+        }).then((response)=>response.text());
+    }));
+    await evaluateStringArrayInSequence(fetchedTextArray);
 }
 function addLoadUrlMethods() {
-    addMethod('String', 'loadPath', 1, setLoadPath, '<primitive: loader>');
-    addMethod('String', 'loadUrl', 1, loadUrl, '<primitive: loader>');
-    addMethod('String', 'load', 1, loadUrl, '<primitive: loader>');
     addMethod('Array', 'loadUrlSequence', 1, loadUrlSequence, '<primitive: loader>');
-    addMethod('Array', 'loadSequence', 1, loadUrlSequence, '<primitive: loader>');
+}
+async function loadUrl(fileName) {
+    await evaluateUrl(resolveFileName(fileName));
 }
 export { loader as loader };
 export { setLoadPath as setLoadPath };
 export { resolveFileName as resolveFileName };
-export { loadUrl as loadUrl };
 export { loadUrlSequence as loadUrlSequence };
-export { loadUrlArrayInSequence as loadUrlArrayInSequence };
 export { addLoadUrlMethods as addLoadUrlMethods };
+export { loadUrl as loadUrl };
 
