@@ -8551,8 +8551,8 @@ Sl {
 	TraitExpression = TraitExtension | TraitDefinition
 	TraitExtension = "+" "@" identifier "{" (methodName Block)* "}"
 	TraitDefinition = "@" identifier "{" (methodName Block)* "}"
-	ConstantDefinition = unqualifiedIdentifier "=" literal
-	Program = Temporaries? ExpressionSequence
+	ConstantDefinition = "Constant" "." unqualifiedIdentifier "=" literal
+	Program = Temporaries? ListOf<Expression, ";">
 	Temporaries = TemporariesWithInitializers | TemporariesWithoutInitializers | TemporariesParenSyntax | TemporariesVarWithoutInitializersSyntax | TemporariesVarWithInitializersSyntax+
 	TemporariesWithInitializers = "|" NonemptyListOf<TemporaryWithInitializer, ","> ";" "|"
 	TemporaryWithInitializer =
@@ -8563,13 +8563,12 @@ Sl {
 	TemporaryWithBlockLiteralInitializer = identifier "=" Block ~("." | binaryOperator)
 	TemporaryWithExpressionInitializer = identifier "=" Expression
 	TemporaryWithDictionaryInitializer = "("  NonemptyListOf<identifier, ","> ")" "=" Expression
-	TemporaryWithArrayInitializer = "["  NonemptyListOf<identifier, ","> "]" "=" Expression
+	TemporaryWithArrayInitializer = "["  NonemptyListOf<identifierOrUnused, ","> "]" "=" Expression
 	TemporariesWithoutInitializers = "|" identifier+ "|"
 	TemporariesParenSyntax = "|(" NonemptyListOf<TemporaryWithInitializer, ","> ")|"
 	TemporariesVarWithoutInitializersSyntax = "var" NonemptyListOf<identifier, ","> ";"
 	TemporariesVarWithInitializersSyntax = "var" NonemptyListOf<TemporaryWithInitializer, ","> ";"
 
-	ExpressionSequence = ListOf<Expression, ";">
 	Expression = Assignment | BinaryExpression | Primary
 	Assignment = ScalarAssignment | ArrayAssignment | DictionaryAssignment
 	ScalarAssignment = identifier ":=" Expression
@@ -8583,6 +8582,12 @@ Sl {
 		| AtPutDelegateSyntax
 		| WriteSlotSyntax
 		| AtSyntax
+		| AtAllVectorSyntax
+		| AtAllArraySyntax
+		| AtPathPutSyntax
+		| AtMatrixSyntax
+		| AtVolumeSyntax
+		| AtPathSyntax
 		| AtQuotedSyntax
 		| ReadSlotSyntax
 		| ValueApply
@@ -8607,10 +8612,19 @@ Sl {
 		| ArrayRangeThenSyntax
 		| IntervalSyntax
 		| IntervalThenSyntax
+		| VectorSyntax
+		| MatrixSyntax
+		| VolumeSyntax
 
 	AtPutSyntax = Primary "[" Expression "]" ":=" Expression
 	AtPutQuotedSyntax = Primary "::" identifier ":=" Expression
 	AtSyntax = Primary "[" Expression "]"
+	AtAllArraySyntax = Primary "[" NonemptyListOf<Expression, ","> "]"
+	AtAllVectorSyntax = Primary "[" VectorSyntaxItem+ "]"
+	AtMatrixSyntax = Primary "[" Expression ";" Expression "]"
+	AtVolumeSyntax = Primary "[" Expression ";" Expression ";" Expression "]"
+	AtPathPutSyntax = Primary "[" NonemptyListOf<Expression, ";"> "]" ":=" Expression
+	AtPathSyntax = Primary "[" NonemptyListOf<Expression, ";"> "]"
 	AtQuotedSyntax = Primary "::" identifier
 	AtPutDelegateSyntax = Primary ":." identifier ":=" Expression
 	MessageSendSyntax = Primary ":." identifier NonEmptyParameterList?
@@ -8631,7 +8645,7 @@ Sl {
 	Block = "{" BlockBody "}"
 	BlockBody = Arguments? Temporaries? Primitive? Statements?
 	Arguments = ArgumentName+ "|"
-	ArgumentName = ":" identifier
+	ArgumentName = ":" identifierOrUnused
 	Primitive = "<primitive:" primitiveCharacter* ">"
 	Statements = NonFinalExpression | FinalExpression
 	NonFinalExpression = Expression ";" Statements
@@ -8651,33 +8665,44 @@ Sl {
 	ArrayRangeThenSyntax = "[" Expression "," Expression ".." Expression "]"
 	IntervalSyntax = "(" Expression ".." Expression ")"
 	IntervalThenSyntax = "(" Expression "," Expression ".." Expression ")"
+	VectorSyntax = "[" VectorSyntaxItem+ "]"
+	VectorSyntaxItem = VectorSyntaxUnarySend | literal | identifier | VectorSyntax
+	VectorSyntaxUnarySend = (literal | identifier) "." identifier
+	MatrixSyntax = "[" ListOf<MatrixSyntaxItems, ";"> "]"
+	MatrixSyntaxItems = VectorSyntaxItem+
+	VolumeSyntax = "[" ListOf<VolumeSyntaxItems, ";;"> "]"
+	VolumeSyntaxItems = ListOf<MatrixSyntaxItems, ";">
 
 	methodName = identifier | binaryOperator
 	unqualifiedIdentifier = letter letterOrDigit*
-	identifier = letter letterOrDigit* (":/" digit+)?
+	qualifiedIdentifier = letter letterOrDigit* (":/" digit+)
+	identifier = qualifiedIdentifier | unqualifiedIdentifier
+	unusedVariableIdentifier = "_"
+	identifierOrUnused = (identifier | unusedVariableIdentifier)
 	letterOrDigit = letter | digit
 	reservedIdentifier = "nil" | "true" | "false"
 	binaryOperator = binaryChar+
-	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$"
+	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$" | "\\"
 
 	literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
-	numberLiteral = floatLiteral | fractionLiteral | largeIntegerLiteral | radixIntegerLiteral | integerLiteral
+	numberLiteral = scientificLiteral | floatLiteral | fractionLiteral | largeIntegerLiteral | radixIntegerLiteral | integerLiteral
 	floatLiteral = "-"? digit+ "." digit+
+	scientificLiteral = (floatLiteral | integerLiteral) "e" integerLiteral
 	fractionLiteral = "-"? digit+ ":" digit+
 	largeIntegerLiteral = "-"? digit+ "n"
 	radixIntegerLiteral = "-"? digit+ "r" letterOrDigit+
 	integerLiteral = "-"? digit+
-	singleQuotedStringLiteral = "\'" (~"\'" ("\\\'" | sourceCharacter))* "\'"
-	doubleQuotedStringLiteral = "\"" (~"\"" ("\\\"" | sourceCharacter))* "\""
+	singleQuotedStringLiteral = "\'" (~"\'" ("\\\'" | "\\\\" | sourceCharacter))* "\'"
+	doubleQuotedStringLiteral = "\"" (~"\"" ("\\\"" | "\\\\" | sourceCharacter))* "\""
 	backtickQuotedStringLiteral = backtickCharacter (~backtickCharacter sourceCharacter)* backtickCharacter
 	backtickCharacter = "${String.fromCodePoint(96)}"
 	sourceCharacter = any
 
 	primitiveCharacter = ~">" sourceCharacter
 
-	comment = multiLineMlComment | singleLineLispComment
+	comment = multiLineMlComment | singleLineMlComment
 	multiLineMlComment = "(*" (~"*)" sourceCharacter)* "*)"
-	singleLineLispComment = ";;" (~lineTerminator sourceCharacter)*
+	singleLineMlComment = "(*)" (~lineTerminator sourceCharacter)*
 	lineTerminator = "\n" | "\r"
 	space += comment
 
@@ -8698,11 +8723,21 @@ const slOptions = {
     insertArityCheck: false,
     requireTypeExists: true,
     simpleArityModel: false,
-    multipleNamesForLocalBlocks: true
+    multipleNamesForLocalBlocks: true,
+    uncheckedIndexing: false
 };
 export { slOptions as slOptions };
+const context = {
+    packageName: 'UnknownPackage'
+};
 function genName(name, arity) {
     return slOptions.simpleArityModel ? name : `${name}_${arity}`;
+}
+function atMethod() {
+    return slOptions.uncheckedIndexing ? 'basicAt' : 'at';
+}
+function atPutMethod() {
+    return slOptions.uncheckedIndexing ? 'basicAtPut' : 'atPut';
 }
 function quoteNewLines(input) {
     return input.replaceAll('\n', '\\n');
@@ -8722,7 +8757,7 @@ const asJs = {
             const tmpSrc = tmp.sourceString;
             const tmpNm = tmpSrc === '' ? [] : slTemporariesSyntaxNames(tmpSrc).map((nm)=>`'${nm}'`);
             const traitList = trt.split(', ').filter((each)=>each.length > 0);
-            const addType = `sl.addType('${typNm}', [${trt}], [${tmpNm}]);`;
+            const addType = `sl.addType('${typNm}', '${context.packageName}', [${trt}], [${tmpNm}]);`;
             const copyTraits = traitList.map((trtNm)=>`sl.copyTraitToType(${trtNm}, '${typNm}');`).join(' ');
             const addMethods = makeMethodList('addMethod', [
                 typNm
@@ -8740,19 +8775,19 @@ const asJs = {
         ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
     TraitDefinition (_at, trtNm, _leftBrace, mthNm, mthBlk, _rightBrace) {
-        const trt = `sl.addTrait('${trtNm.sourceString}');`;
+        const trt = `sl.addTrait('${trtNm.sourceString}', '${context.packageName}');`;
         const mth = makeMethodList('addTraitMethod', [
             trtNm.sourceString
         ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
         return `${trt}${mth}`;
     },
-    ConstantDefinition (name, _equals, value) {
+    ConstantDefinition (_constant, _dot_, name, _equals, value) {
         return `globalThis._${name.sourceString} = ${value.asJs};`;
     },
     Program (tmp, stm) {
         return tmp.asJs + stm.asJs;
     },
-    TemporariesWithInitializers (_verticalBar1, tmp, _semiColon, _verticalBar2) {
+    TemporariesWithInitializers (_leftVerticalBar, tmp, _semiColon, _rightVerticalBar) {
         return `var ${commaList(tmp.asIteration().children)};`;
     },
     TemporaryWithBlockLiteralInitializer (nm, _equals, blk) {
@@ -8816,19 +8851,39 @@ const asJs = {
         return left;
     },
     AtPutSyntax (c, _leftBracket, k, _rightBracket, _equals, v) {
-        return `_${genName('atPut', 3)}(${c.asJs}, ${k.asJs}, ${v.asJs})`;
+        return `_${genName(atPutMethod(), 3)}(${c.asJs}, ${k.asJs}, ${v.asJs})`;
     },
     AtPutQuotedSyntax (c, _colonColon, k, _colonEquals, v) {
-        return `_${genName('atPut', 3)}(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
+        return `_${genName(atPutMethod(), 3)}(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
     },
     AtPutDelegateSyntax (c, _colonDot, k, _colonEquals, v) {
         return `_${genName('atPutDelegateTo', 4)}(${c.asJs}, '${k.sourceString}', ${v.asJs}, 'parent')`;
     },
     AtSyntax (c, _leftBracket, k, _rightBracket) {
-        return `_${genName('at', 2)}(${c.asJs}, ${k.asJs})`;
+        return `_${genName(atMethod(), 2)}(${c.asJs}, ${k.asJs})`;
+    },
+    AtAllArraySyntax (c, _leftBracket, k, _rightBracket) {
+        return `_${genName('atAll', 2)}(${c.asJs}, [${commaList(k.asIteration().children)}])`;
+    },
+    AtAllVectorSyntax (c, _leftBracket, k, _rightBracket) {
+        return `_${genName('atAll', 2)}(${c.asJs}, [${commaList(k.children)}])`;
+    },
+    AtMatrixSyntax (c, _leftBracket, i, _semicolon, j, _rightBracket) {
+        var at = `_${genName(atMethod(), 2)}`;
+        return `${at}(${at}(${c.asJs}, ${i.asJs}), ${j.asJs})`;
+    },
+    AtVolumeSyntax (c, _leftBracket, i, _semicolonOne, j, _semicolonTwo, k, _rightBracket) {
+        var at = `_${genName(atMethod(), 2)}`;
+        return `${at}(${at}(${at}(${c.asJs}, ${i.asJs}), ${j.asJs}), ${k.asJs})`;
+    },
+    AtPathSyntax (c, _leftBracket, k, _rightBracket) {
+        return `_${genName('atPath', 2)}(${c.asJs}, [${commaList(k.asIteration().children)}])`;
+    },
+    AtPathPutSyntax (collection, _leftBracket, keys, _rightBracket, _colonEquals, value) {
+        return `_${genName('atPathPut', 3)}(${collection.asJs}, [${commaList(keys.asIteration().children)}], ${value.asJs})`;
     },
     AtQuotedSyntax (c, _colonColon, k) {
-        return `_${genName('at', 2)}(${c.asJs}, '${k.sourceString}')`;
+        return `_${genName(atMethod(), 2)}(${c.asJs}, '${k.sourceString}')`;
     },
     ReadSlotSyntax (c, _colonArrow, k) {
         return `${c.asJs}['${k.sourceString}']`;
@@ -8893,7 +8948,7 @@ const asJs = {
     BlockBody (arg, tmp, prm, stm) {
         let arityCheck = '';
         if (slOptions.insertArityCheck) {
-            arityCheck = `if(arguments.length !== ${arg.arityOf}) { var err = 'Arity: expected ${arg.arityOf}, ${arg.asJs}'; console.error(err); throw err; }`;
+            arityCheck = `if(arguments.length !== ${arg.arityOf}) { var errorMessage = 'Arity: expected ${arg.arityOf}, ${arg.asJs}'; console.error(errorMessage); throw Error(errorMessage); }`;
         }
         return `(function(${arg.asJs}) { ${arityCheck} ${tmp.asJs} ${prm.asJs} ${stm.asJs} })`;
     },
@@ -8947,10 +9002,10 @@ const asJs = {
         return `[${commaList(array.asIteration().children)}]`;
     },
     ArrayRangeSyntax (_leftBracket, start, _dotDot, end, _rightBracket) {
-        return `_${genName('asArray', 1)}(_${genName('upOrDownTo', 2)}(${start.asJs}, ${end.asJs}))`;
+        return `_${genName('Array', 1)}(_${genName('upOrDownTo', 2)}(${start.asJs}, ${end.asJs}))`;
     },
     ArrayRangeThenSyntax (_leftBracket, start, _comma_, then, _dotDot, end, _rightBracket) {
-        return `_${genName('asArray', 1)}(_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
+        return `_${genName('Array', 1)}(_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
     },
     IntervalSyntax (_leftParen, start, _dotDot, end, _rightParen) {
         return `_${genName('upOrDownTo', 2)}(${start.asJs}, ${end.asJs})`;
@@ -8958,10 +9013,33 @@ const asJs = {
     IntervalThenSyntax (_leftParen, start, _comma_, then, _dotDot, end, _rightParen) {
         return `_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs})`;
     },
-    identifier (c1, cN, _colonDividedBy, a) {
-        const arityPart = slOptions.simpleArityModel ? '' : `${a.children.length === 0 ? '' : '_' + a.sourceString.slice(2)}`;
-        const name = `_${c1.sourceString}${cN.sourceString}${arityPart}`;
-        return name;
+    VectorSyntax (_leftBracket, items, _rightBracket) {
+        return `[${commaList(items.children)}]`;
+    },
+    VectorSyntaxUnarySend (lhs, _dot_, rhs) {
+        return `${genName(rhs.asJs, 1)}(${lhs.asJs})`;
+    },
+    MatrixSyntax (_leftBracket, items, _rightBracket) {
+        return `[${commaList(items.asIteration().children)}]`;
+    },
+    MatrixSyntaxItems (items) {
+        return `[${commaList(items.children)}]`;
+    },
+    VolumeSyntax (_leftBracket, items, _rightBracket) {
+        return `[${commaList(items.asIteration().children)}]`;
+    },
+    VolumeSyntaxItems (items) {
+        return `[${commaList(items.asIteration().children)}]`;
+    },
+    unusedVariableIdentifier (_underscore) {
+        return gensym();
+    },
+    unqualifiedIdentifier (c1, cN) {
+        return `_${c1.sourceString}${cN.sourceString}`;
+    },
+    qualifiedIdentifier (c1, cN, _colonDividedBy, a) {
+        const arityPart = slOptions.simpleArityModel ? '' : `_${a.sourceString}`;
+        return `_${c1.sourceString}${cN.sourceString}${arityPart}`;
     },
     reservedIdentifier (id) {
         switch(id.sourceString){
@@ -8975,6 +9053,9 @@ const asJs = {
     },
     floatLiteral (s, i, _, f) {
         return `${s.sourceString}${i.sourceString}.${f.sourceString}`;
+    },
+    scientificLiteral (base, _e, exponent) {
+        return `${base.sourceString}e${exponent.sourceString}`;
     },
     fractionLiteral (s, n, _colon, d) {
         return `_normalized_1(_Fraction_2(${s.sourceString}${n.sourceString}, ${d.sourceString}))`;
@@ -9047,7 +9128,7 @@ function makeMethod(slProc, clsNmArray, mthNm, mthBlk) {
     const blkSrc = JSON.stringify(blkSource);
     const slName = sl.methodName(mthNm);
     return clsNmArray.map(function(clsNm) {
-        return ` sl.${slProc}('${clsNm}', '${slName}', ${blkArity}, ${blkJs}, ${blkSrc});`;
+        return ` sl.${slProc}('${clsNm}', '${context.packageName}', '${slName}', ${blkArity}, ${blkJs}, ${blkSrc});`;
     }).join(' ');
 }
 function makeMethodList(slProc, clsNmArray, mthNms, mthBlks) {
@@ -9064,37 +9145,52 @@ function rewriteString(str) {
     const answer = slParse(str).asJs;
     return answer;
 }
+export { context as context };
 export { rewriteString as rewriteString };
-function evaluateString(slString) {
-    if (slString.trim().length > 0) {
+function evaluateFor(packageName, fileName, text) {
+    var errText = function(err, toEval) {
+        return `evaluateFor: eval: ${err}: ${packageName}: ${fileName}: ${text}: ${toEval}`;
+    };
+    if (text.trim().length > 0) {
         try {
-            const jsString = rewriteString(slString);
-            if (jsString.trim().length > 0) {
+            context.packageName = packageName;
+            const toEval = rewriteString(text);
+            context.packageName = 'UnknownPackage';
+            if (toEval.trim().length > 0) {
                 try {
-                    return eval(jsString);
+                    return eval(toEval);
                 } catch (err) {
-                    return console.error(`evaluateString: eval: ${err}: ${slString}: ${jsString}`);
+                    return console.error(errText(err, toEval));
                 }
             }
         } catch (err) {
-            return console.error(`evaluateString: rewrite: ${err}: ${slString}`);
+            return console.error(errText(err, 'rewrite failed'));
         }
     }
     return null;
 }
-async function evaluateStringArrayInSequence(slStringArray) {
-    for (let slString of slStringArray){
-        await evaluateString(slString);
+class SourceText {
+    packageName;
+    fileName;
+    text;
+    constructor(packageName, fileName, text){
+        this.packageName = packageName;
+        this.fileName = fileName;
+        this.text = text;
     }
 }
-async function evaluateUrl(url) {
-    await fetch(url, {
-        cache: 'no-cache'
-    }).then((response)=>response.text()).then(evaluateString);
+function evaluateSourceText(src) {
+    return evaluateFor(src.packageName, src.fileName, src.text);
 }
-export { evaluateString as evaluateString };
-export { evaluateStringArrayInSequence as evaluateStringArrayInSequence };
-export { evaluateUrl as evaluateUrl };
+async function evaluateSourceTextArrayInSequence(srcArray) {
+    for (let src of srcArray){
+        await evaluateSourceText(src);
+    }
+}
+export { evaluateFor as evaluateFor };
+export { SourceText as SourceText };
+export { evaluateSourceText as evaluateSourceText };
+export { evaluateSourceTextArrayInSequence as evaluateSourceTextArrayInSequence };
 class PriorityQueue {
     constructor(){
         this.ids = [];
@@ -9159,6 +9255,84 @@ class PriorityQueue {
         this.ids.length = this.values.length = this.length;
     }
 }
+class MersenneTwister {
+    static MT_N = 624;
+    static MT_M = 397;
+    static MATRIX_A = 0x9908b0df;
+    static UPPER_MASK = 0x80000000;
+    static LOWER_MASK = 0x7fffffff;
+    static INV_1 = 1.0 / 0xffffffff;
+    static INV_2 = 1.0 / 0x100000000;
+    static INV_3 = 1.0 / 0x100000000;
+    static INV_53 = 1.0 / 0x20000000000000;
+    mt = new Array(MersenneTwister.MT_N);
+    mti = MersenneTwister.MT_N + 1;
+    mag01 = [
+        0x0,
+        MersenneTwister.MATRIX_A
+    ];
+    constructor(s){
+        this.init(s);
+    }
+    init(s) {
+        this.mt[0] = s >>> 0;
+        for(this.mti = 1; this.mti < MersenneTwister.MT_N; this.mti++){
+            this.mt[this.mti] = this.multiple_as_uint32(1812433253, this.mt[this.mti - 1] ^ this.mt[this.mti - 1] >>> 30) + this.mti;
+            this.mt[this.mti] >>>= 0;
+        }
+    }
+    genrand_int32() {
+        let y = 0;
+        if (this.mti >= MersenneTwister.MT_N) {
+            let kk;
+            for(kk = 0; kk < MersenneTwister.MT_N - MersenneTwister.MT_M; ++kk){
+                y = this.mt[kk] & MersenneTwister.UPPER_MASK | this.mt[kk + 1] & MersenneTwister.LOWER_MASK;
+                this.mt[kk] = this.mt[kk + MersenneTwister.MT_M] ^ y >>> 1 ^ this.mag01[y & 0x1];
+            }
+            for(; kk < MersenneTwister.MT_N - 1; ++kk){
+                y = this.mt[kk] & MersenneTwister.UPPER_MASK | this.mt[kk + 1] & MersenneTwister.LOWER_MASK;
+                this.mt[kk] = this.mt[kk + (MersenneTwister.MT_M - MersenneTwister.MT_N)] ^ y >>> 1 ^ this.mag01[y & 0x1];
+            }
+            y = this.mt[MersenneTwister.MT_N - 1] & MersenneTwister.UPPER_MASK | this.mt[0] & MersenneTwister.LOWER_MASK;
+            this.mt[MersenneTwister.MT_N - 1] = this.mt[MersenneTwister.MT_M - 1] ^ y >>> 1 ^ this.mag01[y & 0x1];
+            this.mti = 0;
+        }
+        y = this.mt[this.mti++];
+        y ^= y >>> 11;
+        y ^= y << 7 & 0x9d2c5680;
+        y ^= y << 15 & 0xefc60000;
+        y ^= y >>> 18;
+        return y >>> 0;
+    }
+    genrand_real1() {
+        return this.genrand_int32() * MersenneTwister.INV_1;
+    }
+    genrand_real2() {
+        return this.genrand_int32() * MersenneTwister.INV_2;
+    }
+    genrand_real3() {
+        return (this.genrand_int32() + 0.5) * MersenneTwister.INV_3;
+    }
+    genrand_res53() {
+        const a = this.genrand_int32() >>> 5;
+        const b = this.genrand_int32() >>> 6;
+        return (a * 0x4000000 + b) * MersenneTwister.INV_53;
+    }
+    multiple_as_uint32(a, b) {
+        const a1 = a >>> 16;
+        const a2 = a & 0xffff;
+        const b1 = b >>> 16;
+        const b2 = b & 0xffff;
+        return (a1 * b2 + a2 * b1 << 16) + a2 * b2 >>> 0;
+    }
+    _snapshot() {
+        return {
+            mt: this.mt,
+            mti: this.mti,
+            mag01: this.mag01
+        };
+    }
+}
 function throwError(text) {
     console.error(text);
     throw Error(text);
@@ -9186,7 +9360,7 @@ const operatorNameTable = {
     '\\': 'backslash',
     '~': 'tilde',
     '?': 'query',
-    '^': 'hat',
+    '^': 'raisedTo',
     '#': 'hash',
     '$': 'dollar',
     ':': 'colon',
@@ -9209,7 +9383,7 @@ function isRecord(anObject) {
     return c === undefined || c.name === 'Object';
 }
 function objectType(anObject) {
-    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'Map' : anObject instanceof Set ? 'Set' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject._type || (isRecord(anObject) ? 'Record' : anObject.constructor.name);
+    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'Map' : anObject instanceof Set ? 'Set' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject instanceof WeakMap ? 'WeakMap' : anObject._type || (isRecord(anObject) ? 'Record' : anObject.constructor.name);
 }
 function typeOf(anObject) {
     if (anObject === null || anObject === undefined) {
@@ -9255,17 +9429,25 @@ function isSet(anObject) {
 function isString(anObject) {
     return typeof anObject === 'string';
 }
+function isSmallFloatInteger(anObject) {
+    return isSmallFloat(anObject) && Number.isInteger(anObject);
+}
 function isByte(anObject) {
-    return isSmallFloat(anObject) && Number.isInteger(anObject) && anObject >= 0 && anObject < 256;
+    return isSmallFloatInteger(anObject) && anObject >= 0 && anObject < 256;
+}
+function isBitwise(anObject) {
+    return isSmallFloatInteger(anObject) && anObject >= -2147483648 && anObject <= 2147483647;
 }
 class Method {
     name;
+    packageName;
     procedure;
     arity;
     sourceCode;
     origin;
-    constructor(name, procedure, arity, sourceCode, origin){
+    constructor(name, packageName, procedure, arity, sourceCode, origin){
         this.name = name;
+        this.packageName = packageName;
         this.procedure = procedure;
         this.arity = arity;
         this.sourceCode = sourceCode;
@@ -9277,19 +9459,23 @@ class Method {
 }
 class Trait {
     name;
+    packageName;
     methodDictionary;
-    constructor(name){
+    constructor(name, packageName){
         this.name = name;
+        this.packageName = packageName;
         this.methodDictionary = new Map();
     }
 }
 class Type {
     name;
+    packageName;
     traitNameArray;
     slotNameArray;
     methodDictionary;
-    constructor(name, traitNameArray, slotNameArray, methodDictionary){
+    constructor(name, packageName, traitNameArray, slotNameArray, methodDictionary){
         this.name = name;
+        this.packageName = packageName;
         this.traitNameArray = traitNameArray;
         this.slotNameArray = slotNameArray;
         this.methodDictionary = methodDictionary;
@@ -9305,27 +9491,27 @@ class System {
     methodDictionary;
     traitDictionary;
     typeDictionary;
-    categoryDictionary;
     nextUniqueId;
     window;
     library;
     transcript;
     cache;
+    globalDictionary;
     constructor(){
         this.methodDictionary = new Map();
         this.traitDictionary = new Map();
         this.typeDictionary = new Map(preinstalledTypes.map(function(each) {
             return [
                 each,
-                new Type(each, [], [], new Map())
+                new Type(each, 'Kernel', [], [], new Map())
             ];
         }));
-        this.categoryDictionary = new Map();
         this.nextUniqueId = 1;
         this.window = window;
-        this.library = new Map();
+        this.library = Object.create(null);
         this.transcript = null;
-        this.cache = new Map();
+        this.cache = Object.create(null);
+        this.globalDictionary = Object.create(null);
     }
 }
 const system = new System();
@@ -9338,17 +9524,17 @@ function typeExists(typeName) {
 function methodExists(methodName) {
     return system.methodDictionary.has(methodName);
 }
-function addTrait(traitName) {
+function addTrait(traitName, packageName) {
     if (traitExists(traitName)) {
         throw `addTrait: trait exists: ${traitName}`;
     } else {
-        system.traitDictionary.set(traitName, new Trait(traitName));
+        system.traitDictionary.set(traitName, new Trait(traitName, packageName));
     }
 }
-function addTraitMethod(traitName, methodName, arity, procedure, sourceCode) {
+function addTraitMethod(traitName, packageName, methodName, arity, procedure, sourceCode) {
     if (traitExists(traitName)) {
         const trait = system.traitDictionary.get(traitName);
-        const method = new Method(methodName, procedure, arity, sourceCode, trait);
+        const method = new Method(methodName, packageName, procedure, arity, sourceCode, trait);
         trait.methodDictionary.set(method.qualifiedName(), method);
         return method;
     } else {
@@ -9374,9 +9560,9 @@ function traitTypeArray(traitName) {
     }
     return answer;
 }
-function extendTraitWithMethod(traitName, name, arity, procedure, sourceCode) {
+function extendTraitWithMethod(traitName, packageName, name, arity, procedure, sourceCode) {
     if (traitExists(traitName)) {
-        const method = addTraitMethod(traitName, name, arity, procedure, sourceCode);
+        const method = addTraitMethod(traitName, packageName, name, arity, procedure, sourceCode);
         traitTypeArray(traitName).forEach(function(typeName) {
             addMethodFor(typeName, method);
         });
@@ -9410,7 +9596,7 @@ function dispatchByType(name, arity, typeTable, parameterArray) {
         if (typeMethod) {
             return typeMethod.procedure.apply(null, parameterArray);
         } else {
-            return throwError(`dispatchByType: no method for type: ${receiverType}; arity=${arity} name=${name}`);
+            return throwError(`dispatchByType: no method ${name}:/${arity} for ${receiverType}`);
         }
     }
 }
@@ -9473,27 +9659,27 @@ function addMethodFor(typeName, method) {
     }
     return method;
 }
-function addMethod(typeName, methodName, arity, procedure, sourceCode) {
+function addMethod(typeName, packageName, methodName, arity, procedure, sourceCode) {
     if (typeExists(typeName)) {
         const typeValue = system.typeDictionary.get(typeName);
-        const method = new Method(methodName, procedure, arity, sourceCode, typeValue);
+        const method = new Method(methodName, packageName, procedure, arity, sourceCode, typeValue);
         return addMethodFor(typeName, method);
     } else {
         throw `addMethod: ${typeName}, ${methodName}, ${arity}`;
     }
 }
-function addType(typeName, traitList, slotNames) {
+function addType(typeName, packageName, traitList, slotNames) {
     if (!typeExists(typeName) || preinstalledTypes.includes(typeName)) {
         const initializeSlots = slotNames.map((each)=>`anInstance.${each} = ${each}`).join('; ');
         const nilSlots = slotNames.map((each)=>`${each}: null`).join(', ');
-        const defNilType = slotNames.length === 0 ? '' : `addMethod('Void', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
-        const defInitializeSlots = slotNames.length === 0 ? '' : `addMethod('${typeName}', 'initializeSlots', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
-        const defPredicateFalse = `extendTraitWithMethod('Object', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive: predicate>')`;
-        const defPredicateTrue = `addMethod('${typeName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive: predicate>')`;
-        const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive: accessor>');`).join('; ');
-        const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive: mutator>');`).join('; ');
+        const defNilType = slotNames.length === 0 ? '' : `addMethod('Void', '${packageName}', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
+        const defInitializeSlots = slotNames.length === 0 ? '' : `addMethod('${typeName}', '${packageName}', 'initializeSlots', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
+        const defPredicateFalse = `extendTraitWithMethod('Object', '${packageName}', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive: predicate>')`;
+        const defPredicateTrue = `addMethod('${typeName}', '${packageName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive: predicate>')`;
+        const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${packageName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive: accessor>');`).join('; ');
+        const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${packageName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive: mutator>');`).join('; ');
         const methodDictionary = typeExists(typeName) ? system.typeDictionary.get(typeName).methodDictionary : new Map();
-        system.typeDictionary.set(typeName, new Type(typeName, traitList, slotNames, methodDictionary));
+        system.typeDictionary.set(typeName, new Type(typeName, packageName, traitList, slotNames, methodDictionary));
         eval(defNilType);
         eval(defInitializeSlots);
         eval(defPredicateFalse);
@@ -9511,7 +9697,7 @@ function methodName(name) {
     return isOperatorName(name) ? operatorMethodName(name) : name;
 }
 function arrayCheckIndex(anArray, anInteger) {
-    return Number.isInteger(anInteger) && anInteger >= 1 && anInteger <= anArray.length;
+    return isSmallFloatInteger(anInteger) && anInteger >= 1 && anInteger <= anArray.length;
 }
 function bigIntSqrt(anInteger) {
     if (anInteger < 2n) {
@@ -9544,6 +9730,57 @@ function assignGlobals() {
     globalThis._system = system;
     globalThis._workspace = new Map();
 }
+function sfc32Generator(a, b, c, d) {
+    return function() {
+        a |= 0;
+        b |= 0;
+        c |= 0;
+        d |= 0;
+        var t = (a + b | 0) + d | 0;
+        d = d + 1 | 0;
+        a = b ^ b >>> 9;
+        b = c + (c << 3) | 0;
+        c = c << 21 | c >>> 11;
+        c = c + t | 0;
+        return (t >>> 0) / 4294967296;
+    };
+}
+function splitMix32Generator(a) {
+    return function() {
+        a |= 0;
+        a = a + 0x9e3779b9 | 0;
+        var t = a ^ a >>> 15;
+        t = Math.imul(t, 0x85ebca6b);
+        t = t ^ t >>> 13;
+        t = Math.imul(t, 0xc2b2ae35);
+        return ((t = t ^ t >>> 16) >>> 0) / 4294967296;
+    };
+}
+function mersenneTwister53Generator(seed) {
+    var mt = new MersenneTwister(seed);
+    return function() {
+        return mt.genrand_res53();
+    };
+}
+function murmur3Generator(str, seed) {
+    var h = seed >>> 0;
+    for(var k, i = 0; i < str.length; i++){
+        k = Math.imul(str.charCodeAt(i), 3432918353);
+        k = k << 15 | k >>> 17;
+        h ^= Math.imul(k, 461845907);
+        h = h << 13 | h >>> 19;
+        h = Math.imul(h, 5) + 3864292196 | 0;
+    }
+    h ^= str.length;
+    return function() {
+        h ^= h >>> 16;
+        h = Math.imul(h, 2246822507);
+        h ^= h >>> 13;
+        h = Math.imul(h, 3266489909);
+        h ^= h >>> 16;
+        return h >>> 0;
+    };
+}
 export { typeOf as typeOf };
 export { isArray as isArray };
 export { isByteArray as isByteArray };
@@ -9552,7 +9789,9 @@ export { isSmallFloat as isSmallFloat };
 export { isLargeInteger as isLargeInteger };
 export { isSet as isSet };
 export { isString as isString };
+export { isSmallFloatInteger as isSmallFloatInteger };
 export { isByte as isByte };
+export { isBitwise as isBitwise };
 export { Method as Method };
 export { Trait as Trait };
 export { Type as Type };
@@ -9576,6 +9815,10 @@ export { methodName as methodName };
 export { arrayCheckIndex as arrayCheckIndex };
 export { bigIntSqrt as bigIntSqrt };
 export { assignGlobals as assignGlobals };
+export { sfc32Generator as sfc32Generator };
+export { splitMix32Generator as splitMix32Generator };
+export { mersenneTwister53Generator as mersenneTwister53Generator };
+export { murmur3Generator as murmur3Generator };
 const loader = {
     loadPath: ''
 };
@@ -9587,17 +9830,29 @@ function resolveFileName(fileName) {
     console.log(`resolveFileName: ${resolvedName}`);
     return resolvedName;
 }
-async function loadUrlSequence(urlArray) {
-    const resolvedUrlArray = urlArray.map(resolveFileName);
-    const fetchedTextArray = await Promise.all(resolvedUrlArray.map(function(url) {
-        return fetch(url, {
+async function loadPackageSequence(packageArray) {
+    const sourceTextArray = [];
+    const resolvedFileNameArray = [];
+    packageArray.forEach(function(aPackage) {
+        const packageName = aPackage[0];
+        aPackage[1].forEach(function(fileName) {
+            const resolvedFileName = resolveFileName(fileName);
+            resolvedFileNameArray.push(resolvedFileName);
+            sourceTextArray.push(new SourceText(packageName, fileName, null));
+        });
+    });
+    const fetchedTextArray = await Promise.all(resolvedFileNameArray.map(function(resolvedFileName) {
+        return fetch(resolvedFileName, {
             cache: 'no-cache'
         }).then((response)=>response.text());
     }));
-    await evaluateStringArrayInSequence(fetchedTextArray);
+    fetchedTextArray.map(function(text, index) {
+        sourceTextArray[index].text = text;
+    });
+    await evaluateSourceTextArrayInSequence(sourceTextArray);
 }
 function addLoadUrlMethods() {
-    addMethod('Array', 'loadUrlSequence', 1, loadUrlSequence, '<primitive: loader>');
+    addMethod('Array', 'Kernel', 'loadPackageSequence', 1, loadPackageSequence, '<primitive: loader>');
 }
 async function loadUrl(fileName) {
     await evaluateUrl(resolveFileName(fileName));
@@ -9605,7 +9860,7 @@ async function loadUrl(fileName) {
 export { loader as loader };
 export { setLoadPath as setLoadPath };
 export { resolveFileName as resolveFileName };
-export { loadUrlSequence as loadUrlSequence };
+export { loadPackageSequence as loadPackageSequence };
 export { addLoadUrlMethods as addLoadUrlMethods };
 export { loadUrl as loadUrl };
 
