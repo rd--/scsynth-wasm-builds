@@ -8543,9 +8543,11 @@ Sl {
 
 	TopLevel = LibraryExpression+ | Program
 	LibraryExpression = TypeExpression | TraitExpression | ConstantDefinition
-	TypeExpression = TypeExtension | TypeListExtension | TypeDefinition
+	TypeExpression = TypeExtension | TypeTypeExtension | TypeListExtension | HostTypeDefinition | TypeDefinition
 	TypeExtension = "+" identifier "{" (methodName Block)* "}"
+	TypeTypeExtension = "+" identifier "^" "{" (methodName Block)* "}"
 	TypeListExtension = "+" "[" NonemptyListOf<identifier, ","> "]" "{" (methodName Block)* "}"
+	HostTypeDefinition = identifier "!" TraitList? "{" Temporaries? (methodName Block)* "}"
 	TypeDefinition = identifier TraitList? "{" Temporaries? (methodName Block)* "}"
 	TraitList = ":" "[" NonemptyListOf<identifier, ","> "]"
 	TraitExpression = TraitExtension | TraitDefinition
@@ -8570,17 +8572,20 @@ Sl {
 	TemporariesVarWithInitializersSyntax = "var" NonemptyListOf<TemporaryWithInitializer, ","> ";"
 
 	Expression = Assignment | BinaryExpression | Primary
-	Assignment = ScalarAssignment | ArrayAssignment | DictionaryAssignment
+	Assignment = ScalarAssignment | ArrayAssignment | DictionaryAssignment | AssignmentOperatorSyntax
 	ScalarAssignment = identifier ":=" Expression
 	ArrayAssignment = "[" NonemptyListOf<identifier, ","> "]" ":=" Expression
 	DictionaryAssignment = "(" NonemptyListOf<identifier, ","> ")" ":=" Expression
+	AssignmentOperatorSyntax = Primary operatorAssignment Expression
 	BinaryExpression = Expression (binaryOperator Primary)+
 
 	Primary
 		= AtPutSyntax
-		| AtPutQuotedSyntax
+		| QuotedAtPutSyntax
 		| AtPutDelegateSyntax
 		| WriteSlotSyntax
+		| AtIfAbsentSyntax
+		| AtIfAbsentPutSyntax
 		| AtSyntax
 		| AtAllVectorSyntax
 		| AtAllArraySyntax
@@ -8588,23 +8593,23 @@ Sl {
 		| AtMatrixSyntax
 		| AtVolumeSyntax
 		| AtPathSyntax
-		| AtQuotedSyntax
+		| QuotedAtIfAbsentSyntax
+		| QuotedAtIfAbsentPutSyntax
+		| QuotedAtSyntax
 		| ReadSlotSyntax
 		| ValueApply
 		| DotExpressionWithTrailingClosuresSyntax
 		| DotExpressionWithTrailingDictionariesSyntax
 		| DotExpressionWithAssignmentSyntax
 		| DotExpression
-		| ImplicitDictionaryAtPutSyntax
-		| ImplicitDictionaryAtSyntax
 		| Block
 		| ApplyWithTrailingDictionariesSyntax
 		| ApplyWithTrailingClosuresSyntax
 		| ApplySyntax
 		| MessageSendSyntax
 		| reservedIdentifier
-		| identifier
 		| literal
+		| identifier
 		| ParenthesisedExpression
 		| DictionaryExpression
 		| ArrayExpression
@@ -8617,15 +8622,19 @@ Sl {
 		| VolumeSyntax
 
 	AtPutSyntax = Primary "[" Expression "]" ":=" Expression
-	AtPutQuotedSyntax = Primary "::" identifier ":=" Expression
+	QuotedAtPutSyntax = Primary "::" identifier ":=" Expression
 	AtSyntax = Primary "[" Expression "]"
+	AtIfAbsentSyntax = Primary "[" Expression "]" ":?" Block
+	AtIfAbsentPutSyntax = Primary "[" Expression "]" ":=?" Block
 	AtAllArraySyntax = Primary "[" NonemptyListOf<Expression, ","> "]"
 	AtAllVectorSyntax = Primary "[" VectorSyntaxItem+ "]"
 	AtMatrixSyntax = Primary "[" Expression ";" Expression "]"
 	AtVolumeSyntax = Primary "[" Expression ";" Expression ";" Expression "]"
 	AtPathPutSyntax = Primary "[" NonemptyListOf<Expression, ";"> "]" ":=" Expression
 	AtPathSyntax = Primary "[" NonemptyListOf<Expression, ";"> "]"
-	AtQuotedSyntax = Primary "::" identifier
+	QuotedAtSyntax = Primary "::" identifier
+	QuotedAtIfAbsentSyntax = Primary "::" identifier ":?" Block
+	QuotedAtIfAbsentPutSyntax = Primary "::" identifier ":=?" Block
 	AtPutDelegateSyntax = Primary ":." identifier ":=" Expression
 	MessageSendSyntax = Primary ":." identifier NonEmptyParameterList?
 	ReadSlotSyntax = Primary ":@" identifier
@@ -8638,9 +8647,6 @@ Sl {
 	DotExpressionWithTrailingDictionariesSyntax = Primary "." identifier NonEmptyParameterList? NonEmptyDictionaryExpression+
 	DotExpressionWithAssignmentSyntax = Primary "." identifier ":=" Expression
 	DotExpression = Primary ("." identifier ~("{" | ":=") NonEmptyParameterList?~("{"))+
-
-	ImplicitDictionaryAtPutSyntax = "::" identifier ":=" Expression
-	ImplicitDictionaryAtSyntax = "::" identifier
 
 	Block = "{" BlockBody "}"
 	BlockBody = Arguments? Temporaries? Primitive? Statements?
@@ -8675,22 +8681,24 @@ Sl {
 
 	methodName = identifier | binaryOperator
 	unqualifiedIdentifier = letter letterOrDigit*
-	qualifiedIdentifier = letter letterOrDigit* (":/" digit+)
-	identifier = qualifiedIdentifier | unqualifiedIdentifier
+	arityQualifiedIdentifier = letter letterOrDigit* (":/" digit+)
+	identifier = arityQualifiedIdentifier | unqualifiedIdentifier
 	unusedVariableIdentifier = "_"
 	identifierOrUnused = (identifier | unusedVariableIdentifier)
 	letterOrDigit = letter | digit
 	reservedIdentifier = "nil" | "true" | "false"
 	binaryOperator = binaryChar+
 	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$" | "\\"
+	operatorAssignment = binaryChar ":" "="
 
 	literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
-	numberLiteral = scientificLiteral | floatLiteral | fractionLiteral | largeIntegerLiteral | radixIntegerLiteral | integerLiteral
+	numberLiteral = scientificLiteral | floatLiteral | fractionLiteral | largeIntegerLiteral | radixIntegerLiteral | integerLiteral | constantNumberLiteral
 	floatLiteral = "-"? digit+ "." digit+
 	scientificLiteral = (floatLiteral | integerLiteral) "e" integerLiteral
 	fractionLiteral = "-"? digit+ ":" digit+
 	largeIntegerLiteral = "-"? digit+ "n"
 	radixIntegerLiteral = "-"? digit+ "r" letterOrDigit+
+	constantNumberLiteral = "Infinity" | "NaN"
 	integerLiteral = "-"? digit+
 	singleQuotedStringLiteral = "\'" (~"\'" ("\\\'" | "\\\\" | sourceCharacter))* "\'"
 	doubleQuotedStringLiteral = "\"" (~"\"" ("\\\"" | "\\\\" | sourceCharacter))* "\""
@@ -8742,6 +8750,17 @@ function atPutMethod() {
 function quoteNewLines(input) {
     return input.replaceAll('\n', '\\n');
 }
+function makeTypeDefinition(isHostType, typNm, trt, tmp, mthNms, mthBlks) {
+    const tmpSrc = tmp.sourceString;
+    const tmpNm = tmpSrc === '' ? [] : slTemporariesSyntaxNames(tmpSrc).map((nm)=>`'${nm}'`);
+    const traitList = trt.split(', ').filter((each)=>each.length > 0);
+    const addType = `sl.addType(${isHostType}, '${typNm}', '${context.packageName}', [${trt}], [${tmpNm}]);`;
+    const copyTraits = traitList.map((trtNm)=>`sl.copyTraitToType(${trtNm}, '${typNm}');`).join(' ');
+    const addMethods = makeMethodList('addMethod', [
+        typNm
+    ], mthNms, mthBlks);
+    return `${addType}${copyTraits}${addMethods}`;
+}
 const asJs = {
     TypeExtension (_plus, typNm, _leftBrace, mthNm, mthBlk, _rightBrace) {
         return makeMethodList('addMethod', [
@@ -8753,18 +8772,10 @@ const asJs = {
         return makeMethodList('addMethod', typNmArray, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
     TypeDefinition (typNm, trt, _leftBrace, tmp, mthNm, mthBlk, _rightBrace) {
-        function makeTypeDefinition(typNm, trt, tmp, mthNms, mthBlks) {
-            const tmpSrc = tmp.sourceString;
-            const tmpNm = tmpSrc === '' ? [] : slTemporariesSyntaxNames(tmpSrc).map((nm)=>`'${nm}'`);
-            const traitList = trt.split(', ').filter((each)=>each.length > 0);
-            const addType = `sl.addType('${typNm}', '${context.packageName}', [${trt}], [${tmpNm}]);`;
-            const copyTraits = traitList.map((trtNm)=>`sl.copyTraitToType(${trtNm}, '${typNm}');`).join(' ');
-            const addMethods = makeMethodList('addMethod', [
-                typNm
-            ], mthNms, mthBlks);
-            return `${addType}${copyTraits}${addMethods}`;
-        }
-        return makeTypeDefinition(typNm.sourceString, trt.asJs, tmp, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+        return makeTypeDefinition(false, typNm.sourceString, trt.asJs, tmp, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+    },
+    HostTypeDefinition (typNm, _isHostType, trt, _leftBrace, tmp, mthNm, mthBlk, _rightBrace) {
+        return makeTypeDefinition(true, typNm.sourceString, trt.asJs, tmp, mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
     TraitList (_colon, _leftBracket, nm, _rightBracket) {
         return nm.asIteration().children.map((c)=>`'${c.sourceString}'`).join(', ');
@@ -8772,6 +8783,11 @@ const asJs = {
     TraitExtension (_plus, _at, trtNm, _leftBrace, mthNm, mthBlk, _rightBrace) {
         return makeMethodList('extendTraitWithMethod', [
             trtNm.sourceString
+        ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
+    },
+    TypeTypeExtension (_plus, typNm, _caret, _leftBrace, mthNm, mthBlk, _rightBrace) {
+        return makeMethodList('addMethod', [
+            typNm.sourceString + '^'
         ], mthNm.children.map((c)=>c.sourceString), mthBlk.children);
     },
     TraitDefinition (_at, trtNm, _leftBrace, mthNm, mthBlk, _rightBrace) {
@@ -8810,7 +8826,7 @@ const asJs = {
         const namesArray = lhs.asIteration().children.map((c)=>c.sourceString);
         const rhsName = gensym();
         const slots = namesArray.map((name, index)=>`_${name} = _${genName('at', 2)}(${rhsName}, ${index + 1})`).join(', ');
-        return `${rhsName} = ${rhs.asJs}, ${slots}`;
+        return `${rhsName} = _assertIsOfSize_2(${rhs.asJs}, ${namesArray.length}), ${slots}`;
     },
     TemporariesWithoutInitializers (_verticalBar1, tmp, _verticalBar2) {
         return `var ${commaList(tmp.children)};`;
@@ -8839,6 +8855,10 @@ const asJs = {
         const slots = namesArray.map((name, index)=>`_${name} = _${genName('at', 2)}(${rhsDictionaryName}, '${name}')`).join('; ');
         return `(function() { var ${rhsDictionaryName} = ${rhs.asJs}; ${slots}; })()`;
     },
+    AssignmentOperatorSyntax (lhs, op, rhs) {
+        const text = `${lhs.sourceString} := ${lhs.sourceString} ${op.asJs} (${rhs.sourceString})`;
+        return rewriteString(text);
+    },
     BinaryExpression (lhs, ops, rhs) {
         let left = lhs.asJs;
         const opsArray = ops.children.map((c)=>c.asJs);
@@ -8853,7 +8873,7 @@ const asJs = {
     AtPutSyntax (c, _leftBracket, k, _rightBracket, _equals, v) {
         return `_${genName(atPutMethod(), 3)}(${c.asJs}, ${k.asJs}, ${v.asJs})`;
     },
-    AtPutQuotedSyntax (c, _colonColon, k, _colonEquals, v) {
+    QuotedAtPutSyntax (c, _colonColon, k, _colonEquals, v) {
         return `_${genName(atPutMethod(), 3)}(${c.asJs}, '${k.sourceString}', ${v.asJs})`;
     },
     AtPutDelegateSyntax (c, _colonDot, k, _colonEquals, v) {
@@ -8861,6 +8881,12 @@ const asJs = {
     },
     AtSyntax (c, _leftBracket, k, _rightBracket) {
         return `_${genName(atMethod(), 2)}(${c.asJs}, ${k.asJs})`;
+    },
+    AtIfAbsentSyntax (c, _leftBracket, k, _rightBracket, _colonQuery, a) {
+        return `_${genName('atIfAbsent', 3)}(${c.asJs}, ${k.asJs}, ${a.asJs})`;
+    },
+    AtIfAbsentPutSyntax (c, _leftBracket, k, _rightBracket, _colonQueryEquals, a) {
+        return `_${genName('atIfAbsentPut', 3)}(${c.asJs}, ${k.asJs}, ${a.asJs})`;
     },
     AtAllArraySyntax (c, _leftBracket, k, _rightBracket) {
         return `_${genName('atAll', 2)}(${c.asJs}, [${commaList(k.asIteration().children)}])`;
@@ -8882,8 +8908,14 @@ const asJs = {
     AtPathPutSyntax (collection, _leftBracket, keys, _rightBracket, _colonEquals, value) {
         return `_${genName('atPathPut', 3)}(${collection.asJs}, [${commaList(keys.asIteration().children)}], ${value.asJs})`;
     },
-    AtQuotedSyntax (c, _colonColon, k) {
+    QuotedAtSyntax (c, _colonColon, k) {
         return `_${genName(atMethod(), 2)}(${c.asJs}, '${k.sourceString}')`;
+    },
+    QuotedAtIfAbsentSyntax (c, _colonColon, k, _colonQuery, a) {
+        return `_${genName('atIfAbsent', 3)}(${c.asJs}, '${k.sourceString}', ${a.asJs})`;
+    },
+    QuotedAtIfAbsentPutSyntax (c, _colonColon, k, _colonQueryEquals, a) {
+        return `_${genName('atIfAbsentPut', 3)}(${c.asJs}, '${k.sourceString}', ${a.asJs})`;
     },
     ReadSlotSyntax (c, _colonArrow, k) {
         return `${c.asJs}['${k.sourceString}']`;
@@ -8935,12 +8967,6 @@ const asJs = {
             }
         }
         return rcv;
-    },
-    ImplicitDictionaryAtPutSyntax (_colonColon, k, _colonEquals, e) {
-        return `_${genName('atPut', 3)}(_implicitDictionary, '${k.sourceString}', ${e.asJs})`;
-    },
-    ImplicitDictionaryAtSyntax (_colonColon, k) {
-        return `_${genName('at', 2)}(_implicitDictionary, '${k.sourceString}')`;
     },
     Block (_leftBrace, blk, _rightBrace) {
         return blk.asJs;
@@ -9032,14 +9058,17 @@ const asJs = {
         return `[${commaList(items.asIteration().children)}]`;
     },
     unusedVariableIdentifier (_underscore) {
+        gensym();
         return gensym();
     },
     unqualifiedIdentifier (c1, cN) {
-        return `_${c1.sourceString}${cN.sourceString}`;
+        const identifier = `_${c1.sourceString}${cN.sourceString}`;
+        return identifier;
     },
-    qualifiedIdentifier (c1, cN, _colonDividedBy, a) {
+    arityQualifiedIdentifier (c1, cN, _aritySeparator, a) {
         const arityPart = slOptions.simpleArityModel ? '' : `_${a.sourceString}`;
-        return `_${c1.sourceString}${cN.sourceString}${arityPart}`;
+        const identifier = `_${c1.sourceString}${cN.sourceString}${arityPart}`;
+        return identifier;
     },
     reservedIdentifier (id) {
         switch(id.sourceString){
@@ -9050,6 +9079,9 @@ const asJs = {
             case 'false':
                 return 'false';
         }
+    },
+    operatorAssignment (op, _colon, _equals) {
+        return op.sourceString;
     },
     floatLiteral (s, i, _, f) {
         return `${s.sourceString}${i.sourceString}.${f.sourceString}`;
@@ -9069,14 +9101,17 @@ const asJs = {
     integerLiteral (s, i) {
         return `${s.sourceString}${i.sourceString}`;
     },
+    constantNumberLiteral (k) {
+        return k.sourceString;
+    },
     singleQuotedStringLiteral (_l, s, _r) {
         return `'${quoteNewLines(s.sourceString)}'`;
     },
     doubleQuotedStringLiteral (_l, s, _r) {
-        return `_${genName('parseDoubleQuotedString', 1)}('${s.sourceString}')`;
+        return `_${genName('parseDoubleQuotedString', 1)}("${s.sourceString}")`;
     },
     backtickQuotedStringLiteral (_l, s, _r) {
-        return `_${genName('parseBacktickQuotedString', 1)}('${s.sourceString}')`;
+        return `_${genName('parseBacktickQuotedString', 1)}(\`${s.sourceString}\`)`;
     },
     NonemptyListOf (first, _sep, rest) {
         return `${first.asJs}; ${rest.children.map((c)=>c.asJs)}`;
@@ -9147,50 +9182,59 @@ function rewriteString(str) {
 }
 export { context as context };
 export { rewriteString as rewriteString };
-function evaluateFor(packageName, fileName, text) {
-    var errText = function(err, toEval) {
-        return `evaluateFor: eval: ${err}: ${packageName}: ${fileName}: ${text}: ${toEval}`;
-    };
-    if (text.trim().length > 0) {
+function onlyBlanks(text) {
+    return text.trim().length == 0;
+}
+function evaluateForSignalling(packageName, text) {
+    if (onlyBlanks(text)) {
+        throw new Error('Empty string');
+    }
+    {
+        let toEval;
+        context.packageName = packageName;
         try {
-            context.packageName = packageName;
-            const toEval = rewriteString(text);
-            context.packageName = 'UnknownPackage';
-            if (toEval.trim().length > 0) {
-                try {
-                    return eval(toEval);
-                } catch (err) {
-                    return console.error(errText(err, toEval));
-                }
-            }
+            toEval = rewriteString(text);
         } catch (err) {
-            return console.error(errText(err, 'rewrite failed'));
+            context.packageName = '*UnknownPackage*';
+            throw new Error('Rewrite failed', {
+                cause: err
+            });
+        }
+        context.packageName = '*UnknownPackage*';
+        if (onlyBlanks(toEval)) {
+            throw new Error('Empty string after rewrite');
+        }
+        {
+            try {
+                return eval(toEval);
+            } catch (err) {
+                throw new Error('Evaluation failed', {
+                    cause: err
+                });
+            }
         }
     }
-    return null;
 }
-class SourceText {
-    packageName;
-    fileName;
-    text;
-    constructor(packageName, fileName, text){
-        this.packageName = packageName;
-        this.fileName = fileName;
-        this.text = text;
+function evaluateFor(packageName, text) {
+    try {
+        return evaluateForSignalling(packageName, text);
+    } catch (err) {
+        console.error(`evaluateFor: ${packageName}: "${text}": ${err.message}: ${err.cause}`);
+        return err;
     }
 }
-function evaluateSourceText(src) {
-    return evaluateFor(src.packageName, src.fileName, src.text);
+async function evaluateUrlFor(packageName, url) {
+    await fetch(url, {
+        cache: 'no-cache'
+    }).then(function(response) {
+        return response.text();
+    }).then(function(text) {
+        return evaluateFor(packageName, text);
+    });
 }
-async function evaluateSourceTextArrayInSequence(srcArray) {
-    for (let src of srcArray){
-        await evaluateSourceText(src);
-    }
-}
+export { evaluateForSignalling as evaluateForSignalling };
 export { evaluateFor as evaluateFor };
-export { SourceText as SourceText };
-export { evaluateSourceText as evaluateSourceText };
-export { evaluateSourceTextArrayInSequence as evaluateSourceTextArrayInSequence };
+export { evaluateUrlFor as evaluateUrlFor };
 class PriorityQueue {
     constructor(){
         this.ids = [];
@@ -9340,11 +9384,11 @@ function throwError(text) {
 function stringCapitalizeFirstLetter(aString) {
     return aString.charAt(0).toUpperCase() + aString.slice(1);
 }
-const operatorNameCharacters = '+*-/&|@<>=%!\\~?^#$:;.';
+const operatorCharacters = '+*-/&|@<>=%!\\~?^#$:;.';
 function isOperatorName(name) {
-    return operatorNameCharacters.includes(name.charAt(0));
+    return operatorCharacters.includes(name.charAt(0));
 }
-const operatorNameTable = {
+const operatorCharacterNameTable = {
     '+': 'plus',
     '*': 'times',
     '-': 'minus',
@@ -9370,12 +9414,12 @@ const operatorNameTable = {
 function operatorMethodName(operator) {
     const words = [
         ...operator
-    ].map((letter)=>operatorNameTable[letter]);
+    ].map((letter)=>operatorCharacterNameTable[letter]);
     return words.slice(0, 1).concat(words.slice(1).map(stringCapitalizeFirstLetter)).join('');
 }
-export { operatorNameCharacters as operatorNameCharacters };
+export { operatorCharacters as operatorCharacters };
 export { isOperatorName as isOperatorName };
-export { operatorNameTable as operatorNameTable };
+export { operatorCharacterNameTable as operatorCharacterNameTable };
 export { operatorMethodName as operatorMethodName };
 export { PriorityQueue as PriorityQueue };
 function isRecord(anObject) {
@@ -9383,7 +9427,7 @@ function isRecord(anObject) {
     return c === undefined || c.name === 'Object';
 }
 function objectType(anObject) {
-    return anObject instanceof Array ? 'Array' : anObject instanceof Error ? 'Error' : anObject instanceof Map ? 'Map' : anObject instanceof Set ? 'Set' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject instanceof WeakMap ? 'WeakMap' : anObject._type || (isRecord(anObject) ? 'Record' : anObject.constructor.name);
+    return anObject instanceof Array ? 'Array' : anObject instanceof Map ? 'Map' : anObject instanceof Set ? 'Set' : anObject instanceof Promise ? 'Promise' : anObject instanceof PriorityQueue ? 'PriorityQueue' : anObject instanceof Uint8Array ? 'ByteArray' : anObject instanceof Float64Array ? 'Float64Array' : anObject instanceof Error ? 'Error' : anObject instanceof WeakMap ? 'WeakMap' : anObject._type || (isRecord(anObject) ? 'Record' : anObject.constructor.name);
 }
 function typeOf(anObject) {
     if (anObject === null || anObject === undefined) {
@@ -9438,23 +9482,32 @@ function isByte(anObject) {
 function isBitwise(anObject) {
     return isSmallFloatInteger(anObject) && anObject >= -2147483648 && anObject <= 2147483647;
 }
-class Method {
+class MethodInformation {
     name;
     packageName;
-    procedure;
     arity;
     sourceCode;
     origin;
-    constructor(name, packageName, procedure, arity, sourceCode, origin){
+    constructor(name, packageName, arity, sourceCode, origin){
         this.name = name;
         this.packageName = packageName;
-        this.procedure = procedure;
         this.arity = arity;
         this.sourceCode = sourceCode;
         this.origin = origin;
     }
     qualifiedName() {
         return `${this.name}:/${this.arity}`;
+    }
+}
+class Method {
+    procedure;
+    information;
+    constructor(procedure, information){
+        this.procedure = procedure;
+        this.information = information;
+    }
+    qualifiedName() {
+        return this.information.qualifiedName();
     }
 }
 class Trait {
@@ -9481,6 +9534,40 @@ class Type {
         this.methodDictionary = methodDictionary;
     }
 }
+class Package {
+    category;
+    name;
+    requires;
+    url;
+    text;
+    isLoaded;
+    constructor(category, name, requires, url, text, isLoaded){
+        this.category = category;
+        this.name = name;
+        this.requires = requires;
+        this.url = url;
+        this.text = text;
+        this.isLoaded = isLoaded;
+    }
+}
+function parsePackageRequires(text) {
+    var firstLine = text.split('\n', 1)[0];
+    var packageNames = firstLine.match(/Requires: (.*)\*\)/);
+    if (packageNames) {
+        return packageNames[1].trim().split(' ');
+    }
+    {
+        return [];
+    }
+}
+function evaluatePackage(pkg) {
+    return evaluateFor(pkg.name, pkg.text);
+}
+async function evaluatePackageArrayInSequence(pkgArray) {
+    for (let pkg of pkgArray){
+        await evaluatePackage(pkg);
+    }
+}
 const preinstalledTypes = [
     'Array',
     'SmallFloat',
@@ -9491,12 +9578,9 @@ class System {
     methodDictionary;
     traitDictionary;
     typeDictionary;
-    nextUniqueId;
+    packageDictionary;
     window;
-    library;
-    transcript;
     cache;
-    globalDictionary;
     constructor(){
         this.methodDictionary = new Map();
         this.traitDictionary = new Map();
@@ -9506,12 +9590,9 @@ class System {
                 new Type(each, 'Kernel', [], [], new Map())
             ];
         }));
-        this.nextUniqueId = 1;
         this.window = window;
-        this.library = Object.create(null);
-        this.transcript = null;
-        this.cache = Object.create(null);
-        this.globalDictionary = Object.create(null);
+        this.packageDictionary = new Map();
+        this.cache = new Map();
     }
 }
 const system = new System();
@@ -9534,7 +9615,7 @@ function addTrait(traitName, packageName) {
 function addTraitMethod(traitName, packageName, methodName, arity, procedure, sourceCode) {
     if (traitExists(traitName)) {
         const trait = system.traitDictionary.get(traitName);
-        const method = new Method(methodName, packageName, procedure, arity, sourceCode, trait);
+        const method = new Method(procedure, new MethodInformation(methodName, packageName, arity, sourceCode, trait));
         trait.methodDictionary.set(method.qualifiedName(), method);
         return method;
     } else {
@@ -9545,7 +9626,7 @@ function copyTraitToType(traitName, typeName) {
     if (traitExists(traitName) && typeExists(typeName)) {
         const methodDictionary = system.traitDictionary.get(traitName).methodDictionary;
         for (const [name, method] of methodDictionary){
-            addMethodFor(typeName, method);
+            addMethodFor(typeName, method, true);
         }
     } else {
         throw `copyTraitToType: trait or type does not exist: ${traitName}, ${typeName}`;
@@ -9564,11 +9645,11 @@ function extendTraitWithMethod(traitName, packageName, name, arity, procedure, s
     if (traitExists(traitName)) {
         const method = addTraitMethod(traitName, packageName, name, arity, procedure, sourceCode);
         traitTypeArray(traitName).forEach(function(typeName) {
-            addMethodFor(typeName, method);
+            addMethodFor(typeName, method, true);
         });
         return method;
     } else {
-        throw `extendTraitWithMethod: ${traitName}, ${name}`;
+        throw `extendTraitWithMethod: trait does not exist: ${traitName}, ${name}`;
     }
 }
 function lookupGeneric(methodName, methodArity, receiverType) {
@@ -9608,21 +9689,21 @@ function dispatchByArity(name, arity, arityTable, parameterArray) {
         return throwError(`dispatchbyArity: no entry for arity: name=${name}, arity=${arity}`);
     }
 }
-function addMethodFor(typeName, method) {
-    if (slOptions.requireTypeExists && !typeExists(typeName)) {
+function addMethodFor(typeName, method, requireTypeExists) {
+    if (requireTypeExists && !typeExists(typeName)) {
         throw `addMethodFor: type does not exist: ${typeName} (${method})`;
     }
-    if (!methodExists(method.name)) {
-        system.methodDictionary.set(method.name, new Map());
+    if (!methodExists(method.information.name)) {
+        system.methodDictionary.set(method.information.name, new Map());
         if (slOptions.simpleArityModel) {
-            const prefixedName = '_' + method.name;
+            const prefixedName = '_' + method.information.name;
             let globalFunction = globalThis[prefixedName];
             if (globalFunction === undefined) {
                 globalFunction = globalThis[prefixedName] = function(...argumentsArray) {
-                    return dispatchByArity(method.name, argumentsArray.length, arityTable, argumentsArray);
+                    return dispatchByArity(method.information.name, argumentsArray.length, arityTable, argumentsArray);
                 };
                 Object.defineProperty(globalFunction, "name", {
-                    value: method.name
+                    value: method.information.name
                 });
                 Object.defineProperty(globalFunction, "hasRestParameters", {
                     value: true
@@ -9630,50 +9711,59 @@ function addMethodFor(typeName, method) {
             }
         }
     }
-    let arityTable = system.methodDictionary.get(method.name);
-    if (!arityTable.has(method.arity)) {
-        arityTable.set(method.arity, new Map());
+    let arityTable = system.methodDictionary.get(method.information.name);
+    if (!arityTable.has(method.information.arity)) {
+        arityTable.set(method.information.arity, new Map());
         if (!slOptions.simpleArityModel) {
-            const prefixedNameWithArity = `_${method.name}_${method.arity}`;
+            const prefixedNameWithArity = `_${method.information.name}_${method.information.arity}`;
             let globalFunctionWithArity = globalThis[prefixedNameWithArity];
             if (globalFunctionWithArity === undefined) {
-                const typeTable = arityTable.get(method.arity);
+                const typeTable = arityTable.get(method.information.arity);
                 globalFunctionWithArity = globalThis[prefixedNameWithArity] = function(...argumentsArray) {
-                    return dispatchByType(method.name, method.arity, typeTable, argumentsArray);
+                    return dispatchByType(method.information.name, method.information.arity, typeTable, argumentsArray);
                 };
                 Object.defineProperty(globalFunctionWithArity, "name", {
                     value: method.qualifiedName()
                 });
                 Object.defineProperty(globalFunctionWithArity, "length", {
-                    value: method.arity
+                    value: method.information.arity
                 });
             }
         }
     }
-    const existingEntry = arityTable.get(method.arity).get(typeName);
-    if (existingEntry && existingEntry.origin.name === typeName && method.origin.name !== typeName) {} else {
-        arityTable.get(method.arity).set(typeName, method);
+    const existingEntry = arityTable.get(method.information.arity).get(typeName);
+    if (existingEntry && existingEntry.information.origin.name === typeName && method.information.origin.name !== typeName) {} else {
+        arityTable.get(method.information.arity).set(typeName, method);
     }
-    if (typeName === method.origin.name) {
+    if (typeName === method.information.origin.name) {
         system.typeDictionary.get(typeName).methodDictionary.set(method.qualifiedName(), method);
     }
     return method;
 }
+function isTypeType(typeName) {
+    return typeName.endsWith('^');
+}
 function addMethod(typeName, packageName, methodName, arity, procedure, sourceCode) {
+    const isMeta = isTypeType(typeName);
+    if (isMeta && !typeExists(typeName)) {
+        system.typeDictionary.set(typeName, new Type(typeName, 'Kernel-System-Meta', [
+            'Object'
+        ], [], new Map()));
+    }
     if (typeExists(typeName)) {
         const typeValue = system.typeDictionary.get(typeName);
-        const method = new Method(methodName, packageName, procedure, arity, sourceCode, typeValue);
-        return addMethodFor(typeName, method);
+        const method = new Method(procedure, new MethodInformation(methodName, packageName, arity, sourceCode, typeValue));
+        return addMethodFor(typeName, method, slOptions.requireTypeExists);
     } else {
-        throw `addMethod: ${typeName}, ${methodName}, ${arity}`;
+        throw `addMethod: type does not exist: ${typeName}, ${methodName}, ${arity}`;
     }
 }
-function addType(typeName, packageName, traitList, slotNames) {
+function addType(isHostType, typeName, packageName, traitList, slotNames) {
     if (!typeExists(typeName) || preinstalledTypes.includes(typeName)) {
         const initializeSlots = slotNames.map((each)=>`anInstance.${each} = ${each}`).join('; ');
         const nilSlots = slotNames.map((each)=>`${each}: null`).join(', ');
-        const defNilType = slotNames.length === 0 ? '' : `addMethod('Void', '${packageName}', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
-        const defInitializeSlots = slotNames.length === 0 ? '' : `addMethod('${typeName}', '${packageName}', 'initializeSlots', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
+        const defNilType = isHostType ? '' : `addMethod('Void', '${packageName}', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
+        const defInitializeSlots = isHostType ? '' : `addMethod('${typeName}', '${packageName}', 'initializeSlots', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
         const defPredicateFalse = `extendTraitWithMethod('Object', '${packageName}', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive: predicate>')`;
         const defPredicateTrue = `addMethod('${typeName}', '${packageName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive: predicate>')`;
         const defSlotAccess = slotNames.map((each)=>`addMethod('${typeName}', '${packageName}', '${each}', 1, function(anInstance) { return anInstance.${each} }, '<primitive: accessor>');`).join('; ');
@@ -9698,6 +9788,33 @@ function methodName(name) {
 }
 function arrayCheckIndex(anArray, anInteger) {
     return isSmallFloatInteger(anInteger) && anInteger >= 1 && anInteger <= anArray.length;
+}
+async function initializeLocalPackages(qualifiedPackageNames) {
+    const packageArray = [];
+    qualifiedPackageNames.forEach((qualifiedName)=>{
+        const parts = qualifiedName.split('-');
+        const category = parts[0];
+        const name = parts[1];
+        const url = category + '/' + name + '.sl';
+        const pkg = new Package(category, name, null, url, null, false);
+        system.packageDictionary.set(name, pkg);
+        packageArray.push(pkg);
+    });
+    return packageArray;
+}
+async function primitiveLoadPackageSequence(packageNames) {
+    const packageArray = [];
+    packageNames.forEach((name)=>{
+        const pkg = system.packageDictionary.get(name);
+        if (!pkg) {
+            console.error(`primitiveLoadPackageSequence: no such package: ${name}, ${pkg}`);
+        }
+        {
+            pkg.isLoaded = true;
+            packageArray.push(pkg);
+        }
+    });
+    await evaluatePackageArrayInSequence(packageArray);
 }
 function bigIntSqrt(anInteger) {
     if (anInteger < 2n) {
@@ -9724,9 +9841,6 @@ function bigIntSqrt(anInteger) {
     return x0;
 }
 function assignGlobals() {
-    globalThis._inf = Infinity;
-    globalThis._constant = new Map();
-    globalThis._implicitDictionary = new Map();
     globalThis._system = system;
     globalThis._workspace = new Map();
 }
@@ -9792,9 +9906,14 @@ export { isString as isString };
 export { isSmallFloatInteger as isSmallFloatInteger };
 export { isByte as isByte };
 export { isBitwise as isBitwise };
+export { MethodInformation as MethodInformation };
 export { Method as Method };
 export { Trait as Trait };
 export { Type as Type };
+export { Package as Package };
+export { parsePackageRequires as parsePackageRequires };
+export { evaluatePackage as evaluatePackage };
+export { evaluatePackageArrayInSequence as evaluatePackageArrayInSequence };
 export { System as System };
 export { system as system };
 export { addTrait as addTrait };
@@ -9813,6 +9932,8 @@ export { addType as addType };
 export { shiftRight as shiftRight };
 export { methodName as methodName };
 export { arrayCheckIndex as arrayCheckIndex };
+export { initializeLocalPackages as initializeLocalPackages };
+export { primitiveLoadPackageSequence as primitiveLoadPackageSequence };
 export { bigIntSqrt as bigIntSqrt };
 export { assignGlobals as assignGlobals };
 export { sfc32Generator as sfc32Generator };
@@ -9830,37 +9951,34 @@ function resolveFileName(fileName) {
     console.log(`resolveFileName: ${resolvedName}`);
     return resolvedName;
 }
-async function loadPackageSequence(packageArray) {
-    const sourceTextArray = [];
+async function primitiveReadLocalPackages(qualifiedPackageNames) {
+    const packageArray = await initializeLocalPackages(qualifiedPackageNames);
     const resolvedFileNameArray = [];
-    packageArray.forEach(function(aPackage) {
-        const packageName = aPackage[0];
-        aPackage[1].forEach(function(fileName) {
-            const resolvedFileName = resolveFileName(fileName);
-            resolvedFileNameArray.push(resolvedFileName);
-            sourceTextArray.push(new SourceText(packageName, fileName, null));
-        });
+    packageArray.forEach((pkg)=>{
+        const resolvedFileName = resolveFileName(pkg.url);
+        resolvedFileNameArray.push(resolvedFileName);
     });
-    const fetchedTextArray = await Promise.all(resolvedFileNameArray.map(function(resolvedFileName) {
-        return fetch(resolvedFileName, {
+    const fetchedTextArray = await Promise.all(resolvedFileNameArray.map(function(fileName) {
+        return fetch(fileName, {
             cache: 'no-cache'
         }).then((response)=>response.text());
     }));
     fetchedTextArray.map(function(text, index) {
-        sourceTextArray[index].text = text;
+        packageArray[index].text = text;
+        packageArray[index].requires = parsePackageRequires(text);
     });
-    await evaluateSourceTextArrayInSequence(sourceTextArray);
 }
 function addLoadUrlMethods() {
-    addMethod('Array', 'Kernel', 'loadPackageSequence', 1, loadPackageSequence, '<primitive: loader>');
+    addMethod('Array', 'Kernel', 'primitiveReadLocalPackages', 1, primitiveReadLocalPackages, '<primitive: package reader>');
+    addMethod('Array', 'Kernel', 'primitiveLoadPackageSequence', 1, primitiveLoadPackageSequence, '<primitive: package loader>');
 }
-async function loadUrl(fileName) {
-    await evaluateUrl(resolveFileName(fileName));
+async function loadUrl(packageName, fileName) {
+    await evaluateUrlFor(packageName, resolveFileName(fileName));
 }
 export { loader as loader };
 export { setLoadPath as setLoadPath };
 export { resolveFileName as resolveFileName };
-export { loadPackageSequence as loadPackageSequence };
+export { primitiveReadLocalPackages as primitiveReadLocalPackages };
 export { addLoadUrlMethods as addLoadUrlMethods };
 export { loadUrl as loadUrl };
 
