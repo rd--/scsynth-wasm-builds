@@ -3536,7 +3536,7 @@ Builder$2.prototype = {
 };
 var Builder_1 = Builder$2;
 var name = "ohm-js";
-var version$2 = "16.4.0";
+var version$2 = "16.6.0";
 var description = "An object-oriented language for parsing and pattern matching";
 var repository = "https://github.com/harc/ohm";
 var keywords = [
@@ -3592,24 +3592,30 @@ var contributors = [
     "Tony Garnock-Jones <tonygarnockjones@gmail.com>",
     "Saketh Kasibatla <sake.kasi@gmail.com>",
     "Lionel Landwerlin <llandwerlin@gmail.com>",
-    "Ray Toal <rtoal@lmu.edu>",
     "Jason Merrill <jwmerrill@gmail.com>",
+    "Ray Toal <rtoal@lmu.edu>",
     "Yoshiki Ohshima <Yoshiki.Ohshima@acm.org>",
     "megabuz <3299889+megabuz@users.noreply.github.com>",
+    "Jonathan Edwards <JonathanMEdwards@gmail.com>",
     "Milan Lajtoš <milan.lajtos@me.com>",
     "Neil Jewers <njjewers@uwaterloo.ca>",
-    "Jonathan Edwards <JonathanMEdwards@gmail.com>",
     "stagas <gstagas@gmail.com>",
-    "Daniel Tomlinson <DanielTomlinson@me.com>",
-    "Pierre Donias <pierre.donias@gmail.com>",
-    "Casey Olson <casey.m.olson@gmail.com>",
+    "AngryPowman <angrypowman@qq.com>",
     "Arthur Carabott <arthurc@gmail.com>",
+    "Casey Olson <casey.m.olson@gmail.com>",
+    "Daniel Tomlinson <DanielTomlinson@me.com>",
+    "Ian Harris <ian@fofgof.xyz>",
+    "Justin Chase <justin.m.chase@gmail.com>",
+    "Leslie Ying <acetophore@users.noreply.github.com>",
+    "Luca Guzzon <luca.guzzon@gmail.com>",
+    "Mike Niebling <(none)>",
+    "Patrick Dubroy <patrick@sourcegraph.com>",
+    "Pierre Donias <pierre.donias@gmail.com>",
     "Stan Rozenraukh <stan@stanistan.com>",
     "Stephan Seidt <stephan.seidt@gmail.com>",
-    "Leslie Ying <acetophore@users.noreply.github.com>",
+    "Steve Phillips <steve@tryingtobeawesome.com>",
     "Szymon Kaliski <kaliskiszymon@gmail.com>",
     "Thomas Nyberg <tomnyberg@gmail.com>",
-    "AngryPowman <angrypowman@qq.com>",
     "Vse Mozhet Byt <vsemozhetbyt@gmail.com>",
     "Wil Chung <10446+iamwilhelm@users.noreply.github.com>",
     "Zachary Sakowitz <zsakowitz@gmail.com>",
@@ -3618,13 +3624,7 @@ var contributors = [
     "codeZeilen <codeZeilen@users.noreply.github.com>",
     "kassadin <kassadin@foxmail.com>",
     "owch <bowenrainyday@gmail.com>",
-    "sfinnie <scott.finnie@gmail.com>",
-    "Steve Phillips <steve@tryingtobeawesome.com>",
-    "Justin Chase <justin.m.chase@gmail.com>",
-    "Luca Guzzon <luca.guzzon@gmail.com>",
-    "Ian Harris <ian@fofgof.xyz>",
-    "Mike Niebling <(none)>",
-    "Patrick Dubroy <patrick@sourcegraph.com>"
+    "sfinnie <scott.finnie@gmail.com>"
 ];
 var dependencies = {};
 var devDependencies = {
@@ -8727,6 +8727,50 @@ function slParseToAst(str) {
 function slTemporariesSyntaxNames(str) {
     return slParseToAst(str)[0];
 }
+function stringCapitalizeFirstLetter(aString) {
+    return aString.charAt(0).toUpperCase() + aString.slice(1);
+}
+const operatorCharacters = '+*-/&|@<>=%!\\~?^#$:;.';
+function isOperatorName(name) {
+    return operatorCharacters.includes(name.charAt(0));
+}
+const operatorCharacterNameTable = {
+    '+': 'plus',
+    '*': 'times',
+    '-': 'minus',
+    '/': 'dividedBy',
+    '&': 'and',
+    '|': 'or',
+    '@': 'commercialAt',
+    '<': 'lessThan',
+    '>': 'greaterThan',
+    '=': 'equals',
+    '%': 'modulo',
+    '!': 'bang',
+    '\\': 'backslash',
+    '~': 'tilde',
+    '?': 'query',
+    '^': 'raisedTo',
+    '#': 'hash',
+    '$': 'dollar',
+    ':': 'colon',
+    ';': 'semicolon',
+    '.': 'dot'
+};
+function operatorMethodName(operator) {
+    const words = [
+        ...operator
+    ].map((letter)=>operatorCharacterNameTable[letter]);
+    return words.slice(0, 1).concat(words.slice(1).map(stringCapitalizeFirstLetter)).join('');
+}
+function methodName(name) {
+    return isOperatorName(name) ? operatorMethodName(name) : name;
+}
+export { operatorCharacters as operatorCharacters };
+export { isOperatorName as isOperatorName };
+export { operatorCharacterNameTable as operatorCharacterNameTable };
+export { operatorMethodName as operatorMethodName };
+export { methodName as methodName };
 const slOptions = {
     insertArityCheck: false,
     requireTypeExists: true,
@@ -8866,7 +8910,7 @@ const asJs = {
         while(opsArray.length > 0){
             const op = opsArray.shift();
             const right = rhsArray.shift();
-            left = `_${genName(sl.operatorMethodName(op), 2)}(${left}, ${right})`;
+            left = `_${genName(operatorMethodName(op), 2)}(${left}, ${right})`;
         }
         return left;
     },
@@ -9078,6 +9122,8 @@ const asJs = {
                 return 'true';
             case 'false':
                 return 'false';
+            default:
+                throw Error('rewrite: reservedIdentifier?');
         }
     },
     operatorAssignment (op, _colon, _equals) {
@@ -9161,7 +9207,7 @@ function makeMethod(slProc, clsNmArray, mthNm, mthBlk) {
     const blkArity = mthBlk.arityOf;
     const blkJs = mthBlk.asJs;
     const blkSrc = JSON.stringify(blkSource);
-    const slName = sl.methodName(mthNm);
+    const slName = methodName(mthNm);
     return clsNmArray.map(function(clsNm) {
         return ` sl.${slProc}('${clsNm}', '${context.packageName}', '${slName}', ${blkArity}, ${blkJs}, ${blkSrc});`;
     }).join(' ');
@@ -9188,8 +9234,7 @@ function onlyBlanks(text) {
 function evaluateForSignalling(packageName, text) {
     if (onlyBlanks(text)) {
         throw new Error('Empty string');
-    }
-    {
+    } else {
         let toEval;
         context.packageName = packageName;
         try {
@@ -9203,8 +9248,7 @@ function evaluateForSignalling(packageName, text) {
         context.packageName = '*UnknownPackage*';
         if (onlyBlanks(toEval)) {
             throw new Error('Empty string after rewrite');
-        }
-        {
+        } else {
             try {
                 return eval(toEval);
             } catch (err) {
@@ -9381,47 +9425,8 @@ function throwError(text) {
     console.error(text);
     throw Error(text);
 }
-function stringCapitalizeFirstLetter(aString) {
-    return aString.charAt(0).toUpperCase() + aString.slice(1);
-}
-const operatorCharacters = '+*-/&|@<>=%!\\~?^#$:;.';
-function isOperatorName(name) {
-    return operatorCharacters.includes(name.charAt(0));
-}
-const operatorCharacterNameTable = {
-    '+': 'plus',
-    '*': 'times',
-    '-': 'minus',
-    '/': 'dividedBy',
-    '&': 'and',
-    '|': 'or',
-    '@': 'commercialAt',
-    '<': 'lessThan',
-    '>': 'greaterThan',
-    '=': 'equals',
-    '%': 'modulo',
-    '!': 'bang',
-    '\\': 'backslash',
-    '~': 'tilde',
-    '?': 'query',
-    '^': 'raisedTo',
-    '#': 'hash',
-    '$': 'dollar',
-    ':': 'colon',
-    ';': 'semicolon',
-    '.': 'dot'
-};
-function operatorMethodName(operator) {
-    const words = [
-        ...operator
-    ].map((letter)=>operatorCharacterNameTable[letter]);
-    return words.slice(0, 1).concat(words.slice(1).map(stringCapitalizeFirstLetter)).join('');
-}
-export { operatorCharacters as operatorCharacters };
-export { isOperatorName as isOperatorName };
-export { operatorCharacterNameTable as operatorCharacterNameTable };
-export { operatorMethodName as operatorMethodName };
 export { PriorityQueue as PriorityQueue };
+export { slGrammar as slGrammar, slSemantics as slSemantics, slParse as slParse };
 function isRecord(anObject) {
     const c = anObject.constructor;
     return c === undefined || c.name === 'Object';
@@ -9437,7 +9442,7 @@ function typeOf(anObject) {
             case 'boolean':
                 return 'Boolean';
             case 'function':
-                return 'Procedure';
+                return 'Block';
             case 'number':
                 return 'SmallFloat';
             case 'bigint':
@@ -9500,10 +9505,10 @@ class MethodInformation {
     }
 }
 class Method {
-    procedure;
+    block;
     information;
-    constructor(procedure, information){
-        this.procedure = procedure;
+    constructor(block, information){
+        this.block = block;
         this.information = information;
     }
     qualifiedName() {
@@ -9555,8 +9560,7 @@ function parsePackageRequires(text) {
     var packageNames = firstLine.match(/Requires: (.*)\*\)/);
     if (packageNames) {
         return packageNames[1].trim().split(' ');
-    }
-    {
+    } else {
         return [];
     }
 }
@@ -9612,10 +9616,10 @@ function addTrait(traitName, packageName) {
         system.traitDictionary.set(traitName, new Trait(traitName, packageName));
     }
 }
-function addTraitMethod(traitName, packageName, methodName, arity, procedure, sourceCode) {
+function addTraitMethod(traitName, packageName, methodName, arity, block, sourceCode) {
     if (traitExists(traitName)) {
         const trait = system.traitDictionary.get(traitName);
-        const method = new Method(procedure, new MethodInformation(methodName, packageName, arity, sourceCode, trait));
+        const method = new Method(block, new MethodInformation(methodName, packageName, arity, sourceCode, trait));
         trait.methodDictionary.set(method.qualifiedName(), method);
         return method;
     } else {
@@ -9641,9 +9645,9 @@ function traitTypeArray(traitName) {
     }
     return answer;
 }
-function extendTraitWithMethod(traitName, packageName, name, arity, procedure, sourceCode) {
+function extendTraitWithMethod(traitName, packageName, name, arity, block, sourceCode) {
     if (traitExists(traitName)) {
-        const method = addTraitMethod(traitName, packageName, name, arity, procedure, sourceCode);
+        const method = addTraitMethod(traitName, packageName, name, arity, block, sourceCode);
         traitTypeArray(traitName).forEach(function(typeName) {
             addMethodFor(typeName, method, true);
         });
@@ -9660,13 +9664,13 @@ function nameWithoutArity(methodName) {
 }
 function applyGenericAt(methodName, parameterArray, receiverType) {
     const method = lookupGeneric(methodName, parameterArray.length, receiverType);
-    return method.procedure.apply(null, parameterArray);
+    return method.block.apply(null, parameterArray);
 }
 function dispatchByType(name, arity, typeTable, parameterArray) {
     if (arity === 0) {
         const method = typeTable.get('Void');
         if (method) {
-            return method.procedure.apply(null, []);
+            return method.block.apply(null, []);
         } else {
             return throwError(`dispatchByType: no zero arity method: ${name}`);
         }
@@ -9675,7 +9679,7 @@ function dispatchByType(name, arity, typeTable, parameterArray) {
         const receiverType = typeOf(receiver);
         const typeMethod = typeTable.get(receiverType);
         if (typeMethod) {
-            return typeMethod.procedure.apply(null, parameterArray);
+            return typeMethod.block.apply(null, parameterArray);
         } else {
             return throwError(`dispatchByType: no method ${name}:/${arity} for ${receiverType}`);
         }
@@ -9743,7 +9747,7 @@ function addMethodFor(typeName, method, requireTypeExists) {
 function isTypeType(typeName) {
     return typeName.endsWith('^');
 }
-function addMethod(typeName, packageName, methodName, arity, procedure, sourceCode) {
+function addMethod(typeName, packageName, methodName, arity, block, sourceCode) {
     const isMeta = isTypeType(typeName);
     if (isMeta && !typeExists(typeName)) {
         system.typeDictionary.set(typeName, new Type(typeName, 'Kernel-System-Meta', [
@@ -9752,7 +9756,7 @@ function addMethod(typeName, packageName, methodName, arity, procedure, sourceCo
     }
     if (typeExists(typeName)) {
         const typeValue = system.typeDictionary.get(typeName);
-        const method = new Method(procedure, new MethodInformation(methodName, packageName, arity, sourceCode, typeValue));
+        const method = new Method(block, new MethodInformation(methodName, packageName, arity, sourceCode, typeValue));
         return addMethodFor(typeName, method, slOptions.requireTypeExists);
     } else {
         throw `addMethod: type does not exist: ${typeName}, ${methodName}, ${arity}`;
@@ -9762,7 +9766,7 @@ function addType(isHostType, typeName, packageName, traitList, slotNames) {
     if (!typeExists(typeName) || preinstalledTypes.includes(typeName)) {
         const initializeSlots = slotNames.map((each)=>`anInstance.${each} = ${each}`).join('; ');
         const nilSlots = slotNames.map((each)=>`${each}: null`).join(', ');
-        const defNilType = isHostType ? '' : `addMethod('Void', '${packageName}', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
+        const defNewType = isHostType ? '' : `addMethod('Void', '${packageName}', 'new${typeName}', 0, function() { return {_type: '${typeName}', ${nilSlots} }; }, '<primitive: constructor>')`;
         const defInitializeSlots = isHostType ? '' : `addMethod('${typeName}', '${packageName}', 'initializeSlots', ${slotNames.length + 1}, function(anInstance, ${slotNames.join(', ')}) { ${initializeSlots}; return anInstance; }, '<primitive: initializer>')`;
         const defPredicateFalse = `extendTraitWithMethod('Object', '${packageName}', 'is${typeName}', 1, function(anObject) { return false; }, '<primitive: predicate>')`;
         const defPredicateTrue = `addMethod('${typeName}', '${packageName}', 'is${typeName}', 1, function(anInstance) { return true; }, '<primitive: predicate>')`;
@@ -9770,7 +9774,7 @@ function addType(isHostType, typeName, packageName, traitList, slotNames) {
         const defSlotMutate = slotNames.map((each)=>`addMethod('${typeName}', '${packageName}', '${each}', 2, function(anInstance, anObject) { anInstance.${each} = anObject; return anObject; }, '<primitive: mutator>');`).join('; ');
         const methodDictionary = typeExists(typeName) ? system.typeDictionary.get(typeName).methodDictionary : new Map();
         system.typeDictionary.set(typeName, new Type(typeName, packageName, traitList, slotNames, methodDictionary));
-        eval(defNilType);
+        eval(defNewType);
         eval(defInitializeSlots);
         eval(defPredicateFalse);
         eval(defPredicateTrue);
@@ -9783,9 +9787,6 @@ function addType(isHostType, typeName, packageName, traitList, slotNames) {
 function shiftRight(lhs, rhs) {
     return lhs >> rhs;
 }
-function methodName(name) {
-    return isOperatorName(name) ? operatorMethodName(name) : name;
-}
 function arrayCheckIndex(anArray, anInteger) {
     return isSmallFloatInteger(anInteger) && anInteger >= 1 && anInteger <= anArray.length;
 }
@@ -9796,7 +9797,7 @@ async function initializeLocalPackages(qualifiedPackageNames) {
         const category = parts[0];
         const name = parts[1];
         const url = category + '/' + name + '.sl';
-        const pkg = new Package(category, name, null, url, null, false);
+        const pkg = new Package(category, name, [], url, '', false);
         system.packageDictionary.set(name, pkg);
         packageArray.push(pkg);
     });
@@ -9806,10 +9807,9 @@ async function primitiveLoadPackageSequence(packageNames) {
     const packageArray = [];
     packageNames.forEach((name)=>{
         const pkg = system.packageDictionary.get(name);
-        if (!pkg) {
+        if (pkg == undefined) {
             console.error(`primitiveLoadPackageSequence: no such package: ${name}, ${pkg}`);
-        }
-        {
+        } else {
             pkg.isLoaded = true;
             packageArray.push(pkg);
         }
@@ -9930,7 +9930,6 @@ export { addMethodFor as addMethodFor };
 export { addMethod as addMethod };
 export { addType as addType };
 export { shiftRight as shiftRight };
-export { methodName as methodName };
 export { arrayCheckIndex as arrayCheckIndex };
 export { initializeLocalPackages as initializeLocalPackages };
 export { primitiveLoadPackageSequence as primitiveLoadPackageSequence };
@@ -9954,9 +9953,9 @@ function resolveFileName(fileName) {
 async function primitiveReadLocalPackages(qualifiedPackageNames) {
     const packageArray = await initializeLocalPackages(qualifiedPackageNames);
     const resolvedFileNameArray = [];
-    packageArray.forEach((pkg)=>{
+    packageArray.forEach(function(pkg) {
         const resolvedFileName = resolveFileName(pkg.url);
-        resolvedFileNameArray.push(resolvedFileName);
+        return resolvedFileNameArray.push(resolvedFileName);
     });
     const fetchedTextArray = await Promise.all(resolvedFileNameArray.map(function(fileName) {
         return fetch(fileName, {
