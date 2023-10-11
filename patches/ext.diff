@@ -2,7 +2,7 @@ diff --git a/server/scsynth/CMakeLists.txt b/server/scsynth/CMakeLists.txt
 index e3547a6e1..2459cf75b 100644
 --- a/server/scsynth/CMakeLists.txt
 +++ b/server/scsynth/CMakeLists.txt
-@@ -139,6 +139,79 @@ if (EMSCRIPTEN)
+@@ -139,6 +139,80 @@ if (EMSCRIPTEN)
  		FFT2InterfaceTable.cpp
  		FeatureDetection.cpp
  		PV_ThirdParty.cpp
@@ -78,6 +78,7 @@ index e3547a6e1..2459cf75b 100644
 +                sc3-rdu/cpp/TLinRandN.cpp
 +                sc3-rdu/cpp/TRandN.cpp
 +                sc3-rdu/cpp/TScramble.cpp
++                sc3-rdu/cpp/TrigAllocator.cpp
 +
  	)
  	foreach(plugin ${plugin_sources_rel})
@@ -108,7 +109,7 @@ diff --git a/server/scsynth/SC_Lib_Cintf.cpp b/server/scsynth/SC_Lib_Cintf.cpp
 index a47a1232d..7e837df54 100644
 --- a/server/scsynth/SC_Lib_Cintf.cpp
 +++ b/server/scsynth/SC_Lib_Cintf.cpp
-@@ -109,6 +109,60 @@ extern void DynNoise_Load(InterfaceTable* table);
+@@ -109,6 +109,61 @@ extern void DynNoise_Load(InterfaceTable* table);
  extern void FFT_UGens_Load(InterfaceTable* table);
  extern void iPhone_Load(InterfaceTable* table);
  
@@ -166,10 +167,11 @@ index a47a1232d..7e837df54 100644
 +extern void TLinRandN_Load(InterfaceTable* table);
 +extern void TRandN_Load(InterfaceTable* table);
 +extern void TScramble_Load(InterfaceTable* table);
++extern void TrigAllocator_Load(InterfaceTable* table);
  
  void deinitialize_library() {
  #ifdef _WIN32
-@@ -166,6 +220,59 @@ void initialize_library(const char* uGensPluginPath) {
+@@ -166,6 +220,60 @@ void initialize_library(const char* uGensPluginPath) {
      iPhone_Load(&gInterfaceTable);
  #    endif
      FFT_UGens_Load(&gInterfaceTable);
@@ -225,6 +227,7 @@ index a47a1232d..7e837df54 100644
 +    TLinRandN_Load(&gInterfaceTable);
 +    TRandN_Load(&gInterfaceTable);
 +    TScramble_Load(&gInterfaceTable);
++    TrigAllocator_Load(&gInterfaceTable);
 +
      return;
  #endif // STATIC_PLUGINS

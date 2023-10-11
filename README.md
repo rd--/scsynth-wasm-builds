@@ -52,7 +52,8 @@ The port of scsynth to web assembly was made by [Hanns Holger Rutz](https://www.
     - TScramble
     - Bezier, Freezer
     - BufMemCpy
-- date: 2022-10-16
+	- TrigAllocator
+- date: 2023-09-30
 
 ## JsSc3 & Spl
 
