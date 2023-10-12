@@ -1039,6 +1039,9 @@ function stringCapitalizeFirstLetter(aString) {
 function stringIsEmpty(aString) {
     return aString.length === 0;
 }
+function stringCompare(p, q) {
+    return p < q ? -1 : p > q ? 1 : 0;
+}
 export { isString as isString };
 export { stringIsPrefixOf as stringIsPrefixOf };
 export { stringLines as stringLines };
@@ -1049,6 +1052,7 @@ export { stringAppend as stringAppend };
 export { stringToCharCodeArray as stringToCharCodeArray };
 export { stringCapitalizeFirstLetter as stringCapitalizeFirstLetter };
 export { stringIsEmpty as stringIsEmpty };
+export { stringCompare as stringCompare };
 function websocket_open(host, port) {
     try {
         const ws_address = `ws://${host}:${Number(port).toString()}`;
@@ -1573,27 +1577,41 @@ class LocalControl {
         this.isTriggered = false;
     }
 }
-function localControlCompare(i, j) {
+function localControlIndexCompare(i, j) {
     return i.index - j.index;
+}
+function localControlNameCompare(i, j) {
+    return stringCompare(i.name, j.name);
+}
+function sortLocalControls(controls) {
+    if (controls.every((each)=>each.index == -1)) {
+        controls.sort(localControlNameCompare);
+        controls.forEach((each, index)=>each.index = index);
+        return controls;
+    } else if (controls.every((each)=>each.index >= 0)) {
+        return controls.sort(localControlIndexCompare);
+    } else {
+        throw Error('sortLocalControls');
+    }
 }
 const ugenCounter = counterNew();
 class ScUgen {
     name;
-    numChan;
+    numChannels;
     rate;
     specialIndex;
     id;
     inputArray;
-    mrg;
+    multipleRootGraph;
     localControl;
-    constructor(name, numChan, rate, specialIndex, inputArray){
+    constructor(name, numChannels, rate, specialIndex, inputArray){
         this.name = name;
-        this.numChan = numChan;
+        this.numChannels = numChannels;
         this.rate = rate;
         this.specialIndex = specialIndex;
         this.id = ugenCounter();
         this.inputArray = inputArray;
-        this.mrg = setNew();
+        this.multipleRootGraph = setNew();
         this.localControl = null;
     }
 }
@@ -1601,6 +1619,9 @@ function localControlInput(name, index, defaultValue) {
     const scUgen = new ScUgen('LocalControl', 1, 1, 0, []);
     scUgen.localControl = new LocalControl(name, index, defaultValue);
     return new Ugen(scUgen, 0);
+}
+function NamedControl(name, defaultValue) {
+    return localControlInput(name, -1, defaultValue);
 }
 function localControls(dictionary) {
     let index = 0;
@@ -1694,19 +1715,19 @@ function requiresMce(inputs) {
 function mceInputTransform(aSignal) {
     return arrayTranspose(arrayExtendToBeOfEqualSize(aSignal));
 }
-function makeUgen(name, numChan, rateSpec, specialIndex, signalArray) {
+function makeUgen(name, numChannels, rateSpec, specialIndex, signalArray) {
     if (requiresMce(signalArray)) {
-        return arrayMap((item)=>makeUgen(name, numChan, rateSpec, specialIndex, item), mceInputTransform(signalArray));
+        return arrayMap((item)=>makeUgen(name, numChannels, rateSpec, specialIndex, item), mceInputTransform(signalArray));
     } else {
         const inputArray = signalArray;
-        const scUgen = new ScUgen(name, numChan, deriveRate(rateSpec, inputArray), specialIndex, inputArray);
-        switch(numChan){
+        const scUgen = new ScUgen(name, numChannels, deriveRate(rateSpec, inputArray), specialIndex, inputArray);
+        switch(numChannels){
             case 0:
                 return new Ugen(scUgen, nilPort);
             case 1:
                 return new Ugen(scUgen, 0);
             default:
-                return arrayFillWithIndex(numChan, (item)=>new Ugen(scUgen, item));
+                return arrayFillWithIndex(numChannels, (item)=>new Ugen(scUgen, item));
         }
     }
 }
@@ -1729,17 +1750,17 @@ function inputFirstUgen(input) {
         return null;
     }
 }
-function mrg(lhs, rhs) {
+function multipleRootGraph(lhs, rhs) {
     const ugen = inputFirstUgen(lhs);
-    if (ugen && ugen.mrg) {
+    if (ugen && ugen.multipleRootGraph) {
         if (isArray(rhs)) {
-            const mrgSet = ugen.mrg;
-            arrayForEach(rhs, (item)=>setAdd(mrgSet, item));
+            const multipleRootGraphSet = ugen.multipleRootGraph;
+            arrayForEach(rhs, (item)=>setAdd(multipleRootGraphSet, item));
         } else {
-            setAdd(ugen.mrg, rhs);
+            setAdd(ugen.multipleRootGraph, rhs);
         }
     } else {
-        throwError(`mrg: no ugen or ugen.mrg is null: ${lhs}, ${rhs}`);
+        throwError(`multipleRootGraph: no ugen or ugen.multipleRootGraph is null: ${lhs}, ${rhs}`);
     }
     return lhs;
 }
@@ -1886,9 +1907,12 @@ function signalSize(aSignal) {
     }
 }
 export { LocalControl as LocalControl };
-export { localControlCompare as localControlCompare };
+export { localControlIndexCompare as localControlIndexCompare };
+export { localControlNameCompare as localControlNameCompare };
+export { sortLocalControls as sortLocalControls };
 export { ScUgen as ScUgen };
 export { localControlInput as localControlInput };
+export { NamedControl as NamedControl };
 export { localControls as localControls };
 export { isScUgen as isScUgen };
 export { isScUgenByName as isScUgenByName };
@@ -1909,7 +1933,7 @@ export { mceInputTransform as mceInputTransform };
 export { makeUgen as makeUgen };
 export { ugenDisplayName as ugenDisplayName };
 export { inputFirstUgen as inputFirstUgen };
-export { mrg as mrg };
+export { multipleRootGraph as multipleRootGraph };
 export { krMutateInPlace as krMutateInPlace };
 export { kr as kr };
 export { UnaryOpWithConstantOptimiser as UnaryOpWithConstantOptimiser };
@@ -3996,6 +4020,15 @@ function TScramble(trigger, inputs) {
         trigger
     ], asArray(inputs)));
 }
+function TrigAllocator(numChannels, algorithm, input, dur) {
+    return makeUgen('TrigAllocator', numChannels, [
+        1
+    ], 0, [
+        algorithm,
+        input,
+        dur
+    ]);
+}
 function VbJonVerb(input, decay, damping, inputbw, erfl, tail) {
     return makeUgen('VBJonVerb', 2, [
         0
@@ -4590,6 +4623,7 @@ export { SvfHp as SvfHp };
 export { SvfLp as SvfLp };
 export { TLinRand as TLinRand };
 export { TScramble as TScramble };
+export { TrigAllocator as TrigAllocator };
 export { VbJonVerb as VbJonVerb };
 export { Vosim as Vosim };
 export { WaveLoss as WaveLoss };
@@ -4955,11 +4989,11 @@ function asLocalBuf(aSignal) {
         }
         const lhs = LocalBuf(shape[0], shape[1]);
         const rhs = SetBuf(lhs, 0, arrayProduct(shape), array);
-        return mrg(lhs, rhs);
+        return multipleRootGraph(lhs, rhs);
     }
 }
 function BufClear(buf) {
-    return mrg(buf, ClearBuf(buf));
+    return multipleRootGraph(buf, ClearBuf(buf));
 }
 function BufRec(bufnum, reset, inputArray) {
     return RecordBuf(bufnum, 0, 1, 0, 1, 1, reset, 0, inputArray);
@@ -4995,8 +5029,8 @@ function SelectX(which, array) {
 function UnitCps(a) {
     return MidiCps(Mul(a, 100));
 }
-function ControlIn(numChan, bus) {
-    return kr(In(numChan, bus));
+function ControlIn(numChannels, bus) {
+    return kr(In(numChannels, bus));
 }
 function ControlOut(bus, channelsArray) {
     return Out(bus, kr(channelsArray));
@@ -5042,7 +5076,7 @@ function PingPongDelay(left, right, maxDelayTime, delayTime, feedback) {
         rightBuffer,
         leftBuffer
     ], Mul(output, feedback));
-    return mrg(output, writer);
+    return multipleRootGraph(output, writer);
 }
 function MultiTapDelay(timesArray, levelsArray, input) {
     const delayFrames = Mul(arrayMaxItem(timesArray), SampleRate());
@@ -5050,7 +5084,7 @@ function MultiTapDelay(timesArray, levelsArray, input) {
     const writer = DelayWrite(buf, input);
     const numReaders = timesArray.length;
     const readers = arrayFromTo(0, numReaders - 1).map((item)=>Mul(DelayTap(buf, timesArray[item]), levelsArray[item]));
-    return mrg(arrayReduce(readers, Add), writer);
+    return multipleRootGraph(arrayReduce(readers, Add), writer);
 }
 function Osc1(buf, dur) {
     const phase = Ln(0, Sub(BufFrames(buf), 1), dur);
@@ -5193,7 +5227,7 @@ export { PointerMouseY as PointerMouseY };
 export { PointerMouseButton as PointerMouseButton };
 export { Pointer as Pointer };
 function KeyState(keycode, minval, maxval, lag) {
-    if (globalThis.globalScSynth.hasIoUgens) {
+    if (globalThis.globalScSynth.useIoUgens) {
         return makeUgen('KeyState', 1, 1, 0, [
             keycode,
             minval,
@@ -5207,7 +5241,7 @@ function KeyState(keycode, minval, maxval, lag) {
     }
 }
 function MouseButton(minval, maxval, lag) {
-    if (globalThis.globalScSynth.hasIoUgens) {
+    if (globalThis.globalScSynth.useIoUgens) {
         return makeUgen('MouseButton', 1, 1, 0, [
             minval,
             maxval,
@@ -5218,7 +5252,7 @@ function MouseButton(minval, maxval, lag) {
     }
 }
 function MouseX(minval, maxval, warp, lag) {
-    if (globalThis.globalScSynth.hasIoUgens) {
+    if (globalThis.globalScSynth.useIoUgens) {
         return makeUgen('MouseX', 1, 1, 0, [
             minval,
             maxval,
@@ -5230,7 +5264,7 @@ function MouseX(minval, maxval, warp, lag) {
     }
 }
 function MouseY(minval, maxval, warp, lag) {
-    if (globalThis.globalScSynth.hasIoUgens) {
+    if (globalThis.globalScSynth.useIoUgens) {
         return makeUgen('MouseY', 1, 1, 0, [
             minval,
             maxval,
@@ -5388,21 +5422,26 @@ const defaultScSynthStatus = {
     sampleRateNominal: 48000,
     sampleRateActual: 48000
 };
-function m_parseStatusReply(msg, status) {
+function m_parseStatusReplyInto(msg, status) {
     if (msg.address === '/status.reply') {
         status.ugenCount = msg.args[1].value;
         status.synthCount = msg.args[2].value;
         status.groupCount = msg.args[3].value;
         status.synthdefCount = msg.args[4].value;
-        status.cpuAverage = msg.args[5].value;
-        status.cpuPeak = msg.args[6].value;
+        status.cpuAverage = Math.round(msg.args[5].value);
+        status.cpuPeak = Math.round(msg.args[6].value);
         status.sampleRateNominal = msg.args[7].value;
         status.sampleRateActual = Math.round(msg.args[8].value);
     } else {
         throw `m_statusReply: not /status.reply: ${msg.address}`;
     }
 }
-function s_new0(name, nodeId, addAction, target) {
+function s_new(name, nodeId, addAction, target, parameterArray) {
+    const oscParameters = [];
+    parameterArray.forEach(function(each) {
+        oscParameters.push(oscString(each[0]));
+        oscParameters.push(oscFloat(each[1]));
+    });
     return {
         address: '/s_new',
         args: [
@@ -5410,8 +5449,32 @@ function s_new0(name, nodeId, addAction, target) {
             oscInt32(nodeId),
             oscInt32(addAction),
             oscInt32(target)
-        ]
+        ].concat(oscParameters)
     };
+}
+function s_new0(name, nodeId, addAction, target) {
+    return s_new(name, nodeId, addAction, target, []);
+}
+function n_set(nodeId, parameterArray) {
+    const oscParameters = [
+        oscInt32(nodeId)
+    ];
+    parameterArray.forEach(function(each) {
+        oscParameters.push(oscString(each[0]));
+        oscParameters.push(oscFloat(each[1]));
+    });
+    return {
+        address: '/n_set',
+        args: oscParameters
+    };
+}
+function n_set1(nodeId, controlName, controlValue) {
+    return n_set(nodeId, [
+        [
+            controlName,
+            controlValue
+        ]
+    ]);
 }
 export { kAddToHead as kAddToHead };
 export { kAddToTail as kAddToTail };
@@ -5432,8 +5495,11 @@ export { m_status as m_status };
 export { m_dumpOsc as m_dumpOsc };
 export { m_notify as m_notify };
 export { defaultScSynthStatus as defaultScSynthStatus };
-export { m_parseStatusReply as m_parseStatusReply };
+export { m_parseStatusReplyInto as m_parseStatusReplyInto };
+export { s_new as s_new };
 export { s_new0 as s_new0 };
+export { n_set as n_set };
+export { n_set1 as n_set1 };
 function audiobuffer_to_scsynth_buffer(scSynth, audioBuffer, bufferNumber, numberOfChannels, bufferData) {
     const numberOfFrames = audioBuffer.length;
     const sampleRate = audioBuffer.sampleRate;
@@ -5502,42 +5568,39 @@ function SfAcquire(urlOrKey, numberOfChannels, channelSelector) {
 }
 export { sc3_buffer as sc3_buffer };
 export { SfAcquire as SfAcquire };
-class CcEvent {
+class ContinuousEvent {
     voice;
-    data;
-    constructor(voice, data){
+    contents;
+    constructor(voice, contents){
         this.voice = voice;
-        this.data = data;
+        this.contents = contents;
     }
     get v() {
         return this.voice;
     }
     get w() {
-        return this.data[0];
+        return this.contents[0];
     }
     get x() {
-        return this.data[1];
+        return this.contents[1];
     }
     get y() {
-        return this.data[2];
+        return this.contents[2];
     }
     get z() {
-        return this.data[3];
+        return this.contents[3];
     }
-    get o() {
-        return this.data[4];
+    get i() {
+        return this.contents[4];
     }
-    get rx() {
-        return this.data[5];
+    get j() {
+        return this.contents[5];
     }
-    get ry() {
-        return this.data[6];
+    get k() {
+        return this.contents[6];
     }
     get p() {
-        return this.data[7];
-    }
-    get px() {
-        return this.data[8];
+        return this.contents[7];
     }
 }
 function eventV(e) {
@@ -5555,14 +5618,14 @@ function eventY(e) {
 function eventZ(e) {
     return e.z;
 }
-function eventO(e) {
-    return e.o;
+function eventI(e) {
+    return e.i;
 }
-function eventRx(e) {
-    return e.rx;
+function eventJ(e) {
+    return e.j;
 }
-function eventRy(e) {
-    return e.ry;
+function eventK(e) {
+    return e.k;
 }
 function eventP(e) {
     return e.p;
@@ -5573,8 +5636,8 @@ function voiceAddr(voiceNumber) {
 }
 function Voicer(numVoices, voiceFunc) {
     return arrayFromTo(1, numVoices).map(function(c) {
-        const controlArray = ControlIn(9, voiceAddr(c + 0));
-        return voiceFunc(new CcEvent(c + 0, controlArray));
+        const controlArray = ControlIn(8, voiceAddr(c + 0));
+        return voiceFunc(new ContinuousEvent(c + 0, controlArray));
     });
 }
 function ccEventParamSetMessage(e) {
@@ -5583,11 +5646,10 @@ function ccEventParamSetMessage(e) {
         e.x,
         e.y,
         e.z,
-        e.o,
-        e.rx,
-        e.ry,
-        e.p,
-        e.px
+        e.i,
+        e.j,
+        e.k,
+        e.p
     ]);
 }
 function voiceEndMessage(voiceNumber) {
@@ -5626,15 +5688,15 @@ function PenAngle(voiceNumber) {
 function PenRadius(voiceNumber) {
     return ControlIn(1, voiceAddr(voiceNumber) + 5);
 }
-export { CcEvent as CcEvent };
+export { ContinuousEvent as ContinuousEvent };
 export { eventV as eventV };
 export { eventW as eventW };
 export { eventX as eventX };
 export { eventY as eventY };
 export { eventZ as eventZ };
-export { eventO as eventO };
-export { eventRx as eventRx };
-export { eventRy as eventRy };
+export { eventI as eventI };
+export { eventJ as eventJ };
+export { eventK as eventK };
 export { eventP as eventP };
 export { voiceAddr as voiceAddr };
 export { Voicer as Voicer };
@@ -5655,11 +5717,11 @@ function ugenTraverseCollecting(p, c, w) {
     if (isArray(p)) {
         arrayForEach(p, (item)=>ugenTraverseCollecting(item, c, w));
     } else if (isUgen(p)) {
-        const mrgArray = setAsArray(p.scUgen.mrg);
+        const multipleRootGraphArray = setAsArray(p.scUgen.multipleRootGraph);
         if (!setIncludes(w, p.scUgen)) {
             setAdd(c, p.scUgen);
             arrayForEach(p.scUgen.inputArray, (item)=>isNumber(item) ? setAdd(c, item) : ugenTraverseCollecting(item, c, w));
-            arrayForEach(mrgArray, (item)=>isNumber(item) ? setAdd(c, item) : ugenTraverseCollecting(item, c, c));
+            arrayForEach(multipleRootGraphArray, (item)=>isNumber(item) ? setAdd(c, item) : ugenTraverseCollecting(item, c, c));
         }
     } else {
         console.error('ugenTraverseCollecting: unknown type', p, c, w);
@@ -5698,7 +5760,7 @@ function makeUgenGraph(name, signal) {
     const constantNodes = arrayFilter(leafNodes, isNumber);
     const controlUgenNodes = arrayFilter(leafNodes, (item)=>isScUgen(item) && item.localControl !== null);
     const controlNodes = arrayMap((item)=>item.localControl, controlUgenNodes);
-    const controlArray = arraySort(controlNodes, localControlCompare);
+    const controlArray = sortLocalControls(controlNodes);
     const ugenNodes = arrayFilter(leafNodes, (item)=>isScUgen(item) && item.localControl === null);
     const ugenArray = arraySort(ugenNodes, scUgenCompare);
     const numLocalBufs = arrayLength(arrayFilter(ugenArray, (item)=>item.name === 'LocalBuf'));
@@ -5753,10 +5815,10 @@ function graphEncodeUgenSpec(graph, ugen) {
         encodePascalString(ugen.name),
         encodeInt8(ugen.rate),
         encodeInt32(arrayLength(ugen.inputArray)),
-        encodeInt32(ugen.numChan),
+        encodeInt32(ugen.numChannels),
         encodeInt16(ugen.specialIndex),
         arrayMap((input)=>arrayMap((index)=>encodeInt32(index), graphUgenInputSpec(graph, input)), ugen.inputArray),
-        arrayReplicate(ugen.numChan, encodeInt8(ugen.rate))
+        arrayReplicate(ugen.numChannels, encodeInt8(ugen.rate))
     ];
 }
 function graphEncodeSyndef(graph) {
@@ -5796,7 +5858,7 @@ export { graphEncodeUgenSpec as graphEncodeUgenSpec };
 export { graphEncodeSyndef as graphEncodeSyndef };
 export { encodeUgen as encodeUgen };
 function ugenGraphPrintUgenSpec(graph, ugen) {
-    console.log(ugen.name, ugen.rate, arrayLength(ugen.inputArray), ugen.numChan, ugen.specialIndex, arrayMap((input)=>graphUgenInputSpec(graph, input), ugen.inputArray), arrayReplicate(ugen.numChan, ugen.rate));
+    console.log(ugen.name, ugen.rate, arrayLength(ugen.inputArray), ugen.numChannels, ugen.specialIndex, arrayMap((input)=>graphUgenInputSpec(graph, input), ugen.inputArray), arrayReplicate(ugen.numChannels, ugen.rate));
 }
 function ugenGraphPrintSyndef(graph) {
     console.log(SCgf, 2, 1, graph.name, arrayLength(graph.constantArray), graph.constantArray, 0, [], 0, [], arrayLength(graph.ugenArray));
@@ -5810,11 +5872,12 @@ function printSyndefOf(ugen) {
 function ugenGraphInputDisplayName(graph, input) {
     if (isUgen(input)) {
         if (isLocalControl(input)) {
-            return `LocalControl(${input.scUgen.localControl.name}, ${input.scUgen.localControl.defaultValue})`;
+            const ctl = input.scUgen.localControl;
+            return `LocalControl(${ctl.name}, ${ctl.index}, ${ctl.defaultValue})`;
         } else {
             const id = String(graphUgenIndex(graph, input.scUgen.id));
             const nm = ugenDisplayName(input.scUgen);
-            const ix = input.scUgen.numChan > 1 ? `[${String(input.port)}]` : '';
+            const ix = input.scUgen.numChannels > 1 ? `[${String(input.port)}]` : '';
             return `${id}_${nm}${ix}`;
         }
     } else if (isNumber(input)) {
@@ -5841,158 +5904,6 @@ export { ugenGraphInputDisplayName as ugenGraphInputDisplayName };
 export { ugenGraphPrettyPrintUgen as ugenGraphPrettyPrintUgen };
 export { ugenGraphPrettyPrintSyndef as ugenGraphPrettyPrintSyndef };
 export { prettyPrintSyndefOf as prettyPrintSyndefOf };
-class ScSynth {
-    options;
-    boot;
-    sendOsc;
-    oscListeners;
-    isAlive;
-    isStarting;
-    hasIoUgens;
-    synthPort;
-    langPort;
-    status;
-    constructor(options, boot, sendOsc){
-        this.options = options;
-        this.boot = boot;
-        this.sendOsc = sendOsc;
-        this.oscListeners = new Map();
-        this.isAlive = false;
-        this.isStarting = false;
-        this.synthPort = 57110;
-        this.langPort = 57120;
-        this.hasIoUgens = false;
-        this.status = defaultScSynthStatus;
-    }
-}
-const synthdefCounter = counterNew();
-function scSynthAddOscListener(scSynth, address, handler) {
-    if (scSynth.oscListeners.has(address)) {
-        scSynth.oscListeners.get(address).add(handler);
-    } else {
-        scSynth.oscListeners.set(address, new Set([
-            handler
-        ]));
-    }
-}
-function scSynthRemoveOscListener(scSynth, address, handler) {
-    scSynth.oscListeners.get(address).delete(handler);
-}
-function scSynthInitStatusTextListener(scSynth, nilText) {
-    let setText = setter_for_inner_html_of('statusText');
-    setInterval(function() {
-        if (scSynth.isAlive) {
-            setText(scSynth.status.ugenCount.toString());
-        } else {
-            setText(nilText);
-        }
-    });
-}
-function scSynthEnsure(scSynth, activity) {
-    if (scSynth.isAlive) {
-        activity();
-    } else if (scSynth.isStarting) {
-        console.log('scSynthEnsure: starting, schedule activity');
-        setTimeout(()=>scSynthEnsure(scSynth, activity), 1000);
-    } else {
-        console.log('scSynthEnsure: offline, start and schedule activity');
-        scSynth.boot();
-        setTimeout(()=>scSynthEnsure(scSynth, activity), 1000);
-    }
-}
-function playSynDefAt(scSynth, synDefName, synDefData, groupId, systemTimeInSeconds) {
-    if (systemTimeInSeconds == null) {
-        scSynth.sendOsc(d_recv_then(synDefData, encodeOscMessage(s_new0(synDefName, -1, 1, groupId))));
-    } else {
-        const unixTimeInMilliseconds = performance.timeOrigin + systemTimeInSeconds * 1000;
-        scSynth.sendOsc(d_recv_then(synDefData, encodeOscBundle({
-            timeTag: {
-                native: unixTimeInMilliseconds
-            },
-            packets: [
-                s_new0(synDefName, -1, 1, groupId)
-            ]
-        })));
-    }
-}
-function playUgenAt(scSynth, ugenGraph, groupId, systemTimeInSeconds) {
-    const synDefName = 'anonymous_' + synthdefCounter();
-    const synDefData = encodeUgen(synDefName, wrapOut(0, ugenGraph));
-    playSynDefAt(scSynth, synDefName, synDefData, groupId, systemTimeInSeconds);
-}
-function playProcedureAt(scSynth, ugenFunction, groupId, systemTimeInSeconds) {
-    playUgenAt(scSynth, ugenFunction(), groupId, systemTimeInSeconds);
-}
-function initGroupStructure(scSynth) {
-    scSynth.sendOsc(g_new([
-        [
-            1,
-            1,
-            0
-        ],
-        [
-            2,
-            1,
-            0
-        ]
-    ]));
-}
-function resetScSynth(scSynth) {
-    scSynth.sendOsc(g_freeAll([
-        1,
-        2
-    ]));
-    initGroupStructure(scSynth);
-}
-function requestStatus(scSynth) {
-    scSynth.sendOsc(m_status);
-}
-function requestNotifications(scSynth) {
-    scSynth.sendOsc(m_notify(1, 1));
-}
-function requestPrintingOsc(scSynth) {
-    scSynth.sendOsc(m_dumpOsc(1));
-}
-function setPointerControls(scSynth, n, w, x, y) {
-    if (scSynth.isAlive) {
-        scSynth.sendOsc(c_setn1(15001 + n * 10, [
-            w,
-            x,
-            y
-        ]));
-    }
-}
-export { ScSynth as ScSynth };
-export { scSynthAddOscListener as scSynthAddOscListener };
-export { scSynthRemoveOscListener as scSynthRemoveOscListener };
-export { scSynthInitStatusTextListener as scSynthInitStatusTextListener };
-export { scSynthEnsure as scSynthEnsure };
-export { playSynDefAt as playSynDefAt };
-export { playUgenAt as playUgenAt };
-export { playProcedureAt as playProcedureAt };
-export { initGroupStructure as initGroupStructure };
-export { resetScSynth as resetScSynth };
-export { requestStatus as requestStatus };
-export { requestNotifications as requestNotifications };
-export { requestPrintingOsc as requestPrintingOsc };
-export { setPointerControls as setPointerControls };
-const sc3_mouse = {
-    w: 0,
-    x: 0,
-    y: 0
-};
-function sc3_mouse_init(scsynth) {
-    const recv_document_mouse_event = function(event) {
-        sc3_mouse.x = event.pageX / window.innerWidth;
-        sc3_mouse.y = 1 - event.pageY / window.innerHeight;
-        sc3_mouse.w = event.buttons === 1 ? 1 : 0;
-        setPointerControls(scsynth, 0, sc3_mouse.w, sc3_mouse.x, sc3_mouse.y);
-    };
-    document.onmousedown = recv_document_mouse_event;
-    document.onmousemove = recv_document_mouse_event;
-    document.onmouseup = recv_document_mouse_event;
-}
-export { sc3_mouse_init as sc3_mouse_init };
 class ScSynthOptions {
     hardwareBufferSize;
     blockSize;
@@ -6004,14 +5915,208 @@ class ScSynthOptions {
         this.numInputs = numInputs;
         this.numOutputs = numOutputs;
     }
+    print() {
+        console.log('-i', this.numInputs, '-o', this.numOutputs, '-Z', this.hardwareBufferSize, '-z', this.blockSize);
+    }
 }
 const scSynthDefaultOptions = new ScSynthOptions(8192, 48, 2, 2);
-function scSynthOptionsPrint(options) {
-    console.log('-i', options.numInputs, '-o', options.numOutputs, '-Z', options.hardwareBufferSize, '-z', options.blockSize);
-}
 export { ScSynthOptions as ScSynthOptions };
 export { scSynthDefaultOptions as scSynthDefaultOptions };
-export { scSynthOptionsPrint as scSynthOptionsPrint };
+var ReadyState;
+(function(ReadyState) {
+    ReadyState["Connecting"] = "Connecting";
+    ReadyState["Connected"] = "Connected";
+    ReadyState["Disconnected"] = "Disconnected";
+})(ReadyState || (ReadyState = {}));
+class ScSynth {
+    options;
+    basicConnect;
+    basicSendOsc;
+    oscListeners;
+    readyState;
+    useIoUgens;
+    status;
+    statusMonitor;
+    constructor(){
+        this.options = scSynthDefaultOptions;
+        this.basicConnect = ()=>console.log('basicConnect: not initialized');
+        this.basicSendOsc = (packet)=>console.log('basicSendOsc: not initialized');
+        this.oscListeners = new Map();
+        this.readyState = ReadyState.Disconnected;
+        this.useIoUgens = false;
+        this.status = defaultScSynthStatus;
+        this.statusMonitor = null;
+    }
+    addOscListener(address, handler) {
+        if (this.oscListeners.has(address)) {
+            this.oscListeners.get(address).add(handler);
+        } else {
+            this.oscListeners.set(address, new Set([
+                handler
+            ]));
+        }
+    }
+    connect() {
+        this.basicConnect();
+        this.readyState = ReadyState.Connecting;
+    }
+    dispatchOscMessage(message) {
+        if (this.readyState != ReadyState.Connected) {
+            this.readyState = ReadyState.Connected;
+            console.log('scSynth: connected');
+            this.initGroupStructure();
+        }
+        this.oscListeners.forEach(function(value, key) {
+            if (message.address === key) {
+                value.forEach(function(handler) {
+                    handler(message);
+                });
+            }
+        });
+        if (message.address === '/status.reply') {
+            m_parseStatusReplyInto(message, this.status);
+        }
+    }
+    initGroupStructure() {
+        this.sendOsc(g_new([
+            [
+                1,
+                1,
+                0
+            ],
+            [
+                2,
+                1,
+                0
+            ]
+        ]));
+    }
+    isConnected() {
+        return this.readyState == ReadyState.Connected;
+    }
+    playProcedureAt(ugenFunction, nodeId, groupId, systemTimeInSeconds) {
+        this.playUgenAt(ugenFunction(), nodeId, groupId, [], systemTimeInSeconds);
+    }
+    playSynDefAt(synDefName, synDefData, nodeId, groupId, parameterArray, systemTimeInSeconds) {
+        this.whenConnected(()=>this.sendOsc(playSynDefAtMessage(synDefName, synDefData, nodeId, groupId, parameterArray, systemTimeInSeconds)));
+    }
+    playUgenAt(ugenGraph, nodeId, groupId, parameterArray, systemTimeInSeconds) {
+        const synDefName = 'anonymous_' + synthdefCounter();
+        const synDefData = encodeUgen(synDefName, wrapOut(0, ugenGraph));
+        this.playSynDefAt(synDefName, synDefData, nodeId, groupId, parameterArray, systemTimeInSeconds);
+    }
+    removeOscListener(address, handler) {
+        this.oscListeners.get(address).delete(handler);
+    }
+    requestNotifications() {
+        this.sendOsc(m_notify(1, 1));
+    }
+    requestPrintingOsc() {
+        this.sendOsc(m_dumpOsc(1));
+    }
+    requestStatus() {
+        this.sendOsc(m_status);
+    }
+    reset() {
+        this.sendOsc(g_freeAll([
+            1,
+            2
+        ]));
+        this.initGroupStructure();
+    }
+    sendOsc(oscPacket) {
+        if (this.readyState != ReadyState.Disconnected) {
+            this.basicSendOsc(oscPacket);
+        } else {
+            console.warn('ScSynth.sendOsc: disconnected');
+        }
+    }
+    startStatusMonitor() {
+        if (this.statusMonitor == null) {
+            this.statusMonitor = setInterval(()=>this.requestStatus(), 1000);
+        } else {
+            console.error('ScSynth.startStatusMonitor: monitor started?');
+        }
+    }
+    stopStatusMonitor() {
+        if (this.statusMonitor != null) {
+            clearInterval(this.statusMonitor);
+            this.statusMonitor = null;
+        }
+    }
+    whenConnected(activity) {
+        switch(this.readyState){
+            case ReadyState.Connected:
+                activity();
+                break;
+            case ReadyState.Connecting:
+                console.log('ScSynth.whenConnected: connecting, schedule activity');
+                setTimeout(()=>this.whenConnected(activity), 1000);
+                break;
+            case ReadyState.Disconnected:
+                console.log('ScSynth.whenConnected: disconnected, start and schedule activity');
+                this.connect();
+                setTimeout(()=>this.whenConnected(activity), 1000);
+                break;
+            default:
+                console.log('ScSynth.whenConnected: unknown readyState', this.readyState);
+        }
+    }
+}
+const synthdefCounter = counterNew();
+function playSynDefAtMessage(synDefName, synDefData, nodeId, groupId, parameterArray, systemTimeInSeconds) {
+    const sNew = s_new(synDefName, nodeId, 1, groupId, parameterArray);
+    const completionMessage = systemTimeInSeconds == null ? encodeOscMessage(sNew) : encodeOscBundle({
+        timeTag: {
+            native: performance.timeOrigin + systemTimeInSeconds * 1000
+        },
+        packets: [
+            sNew
+        ]
+    });
+    return d_recv_then(synDefData, completionMessage);
+}
+function setPointerControls(scSynth, n, w, x, y) {
+    if (scSynth.isConnected() && !scSynth.useIoUgens) {
+        scSynth.sendOsc(c_setn1(15001 + n * 10, [
+            w,
+            x,
+            y
+        ]));
+    }
+}
+export { ReadyState as ReadyState };
+export { ScSynth as ScSynth };
+export { playSynDefAtMessage as playSynDefAtMessage };
+export { setPointerControls as setPointerControls };
+const sc3Mouse = {
+    w: 0,
+    x: 0,
+    y: 0
+};
+function sc3_mouse_init(scSynth) {
+    const onMouseEvent = function(event) {
+        sc3Mouse.x = event.pageX / window.innerWidth;
+        sc3Mouse.y = 1 - event.pageY / window.innerHeight;
+        sc3Mouse.w = event.buttons === 1 ? 1 : 0;
+        setPointerControls(scSynth, 0, sc3Mouse.w, sc3Mouse.x, sc3Mouse.y);
+    };
+    document.onmousedown = onMouseEvent;
+    document.onmousemove = onMouseEvent;
+    document.onmouseup = onMouseEvent;
+}
+export { sc3_mouse_init as sc3_mouse_init };
+function scSynthInitStatusTextListener(scSynth, nilText) {
+    let setText = setter_for_inner_html_of('statusText');
+    setInterval(function() {
+        if (scSynth.isConnected()) {
+            setText(scSynth.status.ugenCount.toString());
+        } else {
+            setText(nilText);
+        }
+    });
+}
+export { scSynthInitStatusTextListener as scSynthInitStatusTextListener };
 function initScSynthWasmModule(scSynthModule, logFunction) {
     scSynthModule.preRun = [];
     scSynthModule.postRun = [];
@@ -6030,83 +6135,77 @@ function initScSynthWasmModule(scSynthModule, logFunction) {
     };
 }
 export { initScSynthWasmModule as initScSynthWasmModule };
-function scsynthWasm(options, wasm) {
-    const scsynth = new ScSynth(options, ()=>bootScSynthWasm(scsynth, wasm), (oscPacket)=>sendOscWasm(scsynth, wasm, oscPacket));
-    return scsynth;
+function scSynthUseWasm(scSynth, wasm) {
+    if (scSynth.isConnected()) {
+        throw Error('scSynthUseWasm: already connected');
+    } else {
+        scSynth.basicConnect = ()=>basicConnect(scSynth, wasm);
+        scSynth.basicSendOsc = (oscPacket)=>basicSendOsc(scSynth, wasm, oscPacket);
+    }
 }
-function sendOscWasm(scsynth, wasm, oscPacket) {
-    if ((scsynth.isStarting || scsynth.isAlive) && wasm.oscDriver) {
-        const port = wasm.oscDriver[scsynth.synthPort];
-        const recv = port && port.receive;
-        if (recv) {
-            recv(scsynth.langPort, encodeOscPacket(oscPacket));
+const langPort = 57120;
+function basicConnect(scSynth, wasm) {
+    const args = wasm['arguments'];
+    args[args.indexOf('-i') + 1] = String(scSynth.options.numInputs);
+    args[args.indexOf('-o') + 1] = String(scSynth.options.numOutputs);
+    args.push('-Z', String(scSynth.options.hardwareBufferSize));
+    args.push('-z', String(scSynth.options.blockSize));
+    args.push('-w', '512');
+    args.push('-m', '32768');
+    wasm.callMain(args);
+    setTimeout(function() {
+        wasm.oscDriver[langPort] = {
+            receive: function(address, data) {
+                scSynth.dispatchOscMessage(decodeOscMessage(data));
+            }
+        };
+    }, 1000);
+    scSynth.startStatusMonitor();
+}
+function basicSendOsc(scSynth, wasm, oscPacket) {
+    if (wasm.oscDriver) {
+        const port = wasm.oscDriver[57110];
+        if (port && port.receive) {
+            port.receive(57120, encodeOscPacket(oscPacket));
         } else {
-            console.warn('sendOscWasm: recv?');
+            console.error('wasm: sendOsc: no port or no receive?');
         }
     } else {
-        console.warn('sendOscWasm: scsynth not running', scsynth.isStarting, scsynth.isAlive);
+        console.error('wasm: sendOsc: no oscDriver?');
     }
 }
-function bootScSynthWasm(scsynth, wasm) {
-    scSynthOptionsPrint(scsynth.options);
-    if (!scsynth.isAlive && !scsynth.isStarting) {
-        const args = wasm['arguments'];
-        args[args.indexOf('-i') + 1] = String(scsynth.options.numInputs);
-        args[args.indexOf('-o') + 1] = String(scsynth.options.numOutputs);
-        args.push('-Z', String(scsynth.options.hardwareBufferSize));
-        args.push('-z', String(scsynth.options.blockSize));
-        args.push('-w', '512');
-        args.push('-m', '32768');
-        wasm.callMain(args);
-        setTimeout(()=>monitorOscWasm(scsynth, wasm), 1000);
-        setInterval(()=>sendOscWasm(scsynth, wasm, m_status), 1000);
-        scsynth.isStarting = true;
-    } else {
-        console.log('bootScSynth: already running');
-    }
-}
-function monitorOscWasm(scsynth, wasm) {
-    wasm.oscDriver[scsynth.langPort] = {
-        receive: function(addr, data) {
-            if (scsynth.isStarting) {
-                scsynth.isStarting = false;
-                console.log('scsynth: starting completed');
-            }
-            if (!scsynth.isAlive) {
-                scsynth.isAlive = true;
-                initGroupStructure(scsynth);
-            }
-            const msg = decodeOscMessage(data);
-            scsynth.oscListeners.forEach(function(value, key) {
-                if (msg.address === key) {
-                    value.forEach(function(handler) {
-                        handler(msg);
-                    });
-                }
-            });
-            if (msg.address === '/status.reply') {
-                m_parseStatusReply(msg, scsynth.status);
-            } else if (msg.address === '/done') {
-                console.log('/done', msg.args[0]);
-            } else {
-                console.log('monitorOsc', addr, JSON.stringify(msg, null, 4));
-            }
-        }
-    };
-}
-export { scsynthWasm as scsynthWasm };
-export { sendOscWasm as sendOscWasm };
-export { bootScSynthWasm as bootScSynthWasm };
+export { scSynthUseWasm as scSynthUseWasm };
 if (globalThis.Module !== undefined) {
-    initScSynthWasmModule(globalThis.Module, consoleLog);
+    initScSynthWasmModule(globalThis.Module, (text)=>console.log(text));
 }
-function sc3_wasm_init() {
-    globalThis.globalScSynth = scsynthWasm(scSynthDefaultOptions, globalThis.Module);
-    globalThis.onerror = function(event) {
-        consoleLog(`globalThis.onerror: ${String(event)}`);
-    };
+function ScSynthWasm() {
+    const scSynth = new ScSynth();
+    scSynthUseWasm(scSynth, globalThis.Module);
+    return scSynth;
 }
-export { sc3_wasm_init as sc3_wasm_init };
+export { ScSynthWasm as ScSynthWasm };
+function scSynthUseWebSocket(scSynth, url) {
+    if (scSynth.isConnected()) {
+        throw Error('scSynthUseWebSocket: already connected');
+    } else {
+        const webSocket = new WebSocket(url);
+        webSocket.binaryType = 'arraybuffer';
+        scSynth.basicConnect = ()=>scSynth.startStatusMonitor();
+        scSynth.basicSendOsc = (oscPacket)=>webSocket.send(encodeOscPacket(oscPacket));
+        scSynth.useIoUgens = true;
+        webSocket.onopen = function() {};
+        webSocket.onmessage = function(event) {
+            scSynth.dispatchOscMessage(decodeOscMessage(event.data));
+        };
+    }
+}
+function ScSynthWebSocket(url) {
+    const scSynth = new ScSynth();
+    scSynthUseWebSocket(scSynth, url);
+    return scSynth;
+}
+export { scSynthUseWebSocket as scSynthUseWebSocket };
+export { ScSynthWebSocket as ScSynthWebSocket };
 function append(lhs, rhs) {
     return lhs.concat(rhs);
 }

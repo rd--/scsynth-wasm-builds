@@ -8577,7 +8577,7 @@ Sl {
 	ArrayAssignment = "[" NonemptyListOf<identifier, ","> "]" ":=" Expression
 	DictionaryAssignment = "(" NonemptyListOf<identifier, ","> ")" ":=" Expression
 	AssignmentOperatorSyntax = Primary operatorAssignment Expression
-	BinaryExpression = Expression (binaryOperator Primary)+
+	BinaryExpression = Expression ((binaryOperatorWithAdverb | binaryOperator) Primary)+
 
 	Primary
 		= AtPutSyntax
@@ -8613,8 +8613,8 @@ Sl {
 		| ParenthesisedExpression
 		| DictionaryExpression
 		| ArrayExpression
-		| ArrayRangeSyntax
-		| ArrayRangeThenSyntax
+		| ArrayIntervalSyntax
+		| ArrayIntervalThenSyntax
 		| IntervalSyntax
 		| IntervalThenSyntax
 		| VectorSyntax
@@ -8667,8 +8667,8 @@ Sl {
 	IdentifierAssociation = identifier ":" Expression
 	StringAssociation = singleQuotedStringLiteral ":" Expression
 	ArrayExpression = "[" ListOf<Expression, ","> "]"
-	ArrayRangeSyntax = "[" Expression ".." Expression "]"
-	ArrayRangeThenSyntax = "[" Expression "," Expression ".." Expression "]"
+	ArrayIntervalSyntax = "[" Expression ".." Expression "]"
+	ArrayIntervalThenSyntax = "[" Expression "," Expression ".." Expression "]"
 	IntervalSyntax = "(" Expression ".." Expression ")"
 	IntervalThenSyntax = "(" Expression "," Expression ".." Expression ")"
 	VectorSyntax = "[" VectorSyntaxItem+ "]"
@@ -8688,11 +8688,13 @@ Sl {
 	letterOrDigit = letter | digit
 	reservedIdentifier = "nil" | "true" | "false"
 	binaryOperator = binaryChar+
+	binaryOperatorWithAdverb = binaryOperator "." identifier
 	binaryChar = "!" | "%" | "&" | "*" | "+" | "/" | "<" | "=" | ">" | "?" | "@" | "~" | "|" | "-" | "^" | "#" | "$" | "\\"
 	operatorAssignment = binaryChar ":" "="
 
-	literal = numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
+	literal = integerIntervalLiteral | numberLiteral | singleQuotedStringLiteral | doubleQuotedStringLiteral | backtickQuotedStringLiteral
 	numberLiteral = scientificLiteral | floatLiteral | fractionLiteral | largeIntegerLiteral | radixIntegerLiteral | integerLiteral | constantNumberLiteral
+	integerIntervalLiteral = integerLiteral "..." integerLiteral
 	floatLiteral = "-"? digit+ "." digit+
 	scientificLiteral = (floatLiteral | integerLiteral) "e" integerLiteral
 	fractionLiteral = "-"? digit+ ":" digit+
@@ -8903,6 +8905,12 @@ const asJs = {
         const text = `${lhs.sourceString} := ${lhs.sourceString} ${op.asJs} (${rhs.sourceString})`;
         return rewriteString(text);
     },
+    binaryOperator (op) {
+        return `_${genName(operatorMethodName(op.sourceString), 2)}`;
+    },
+    binaryOperatorWithAdverb (op, _dot, adverb) {
+        return `_${genName(adverb.sourceString, 1)}(_${genName(operatorMethodName(op.sourceString), 2)})`;
+    },
     BinaryExpression (lhs, ops, rhs) {
         let left = lhs.asJs;
         const opsArray = ops.children.map((c)=>c.asJs);
@@ -8910,7 +8918,7 @@ const asJs = {
         while(opsArray.length > 0){
             const op = opsArray.shift();
             const right = rhsArray.shift();
-            left = `_${genName(operatorMethodName(op), 2)}(${left}, ${right})`;
+            left = `${op}(${left}, ${right})`;
         }
         return left;
     },
@@ -9071,10 +9079,10 @@ const asJs = {
     ArrayExpression (_leftBracket, array, _rightBracket) {
         return `[${commaList(array.asIteration().children)}]`;
     },
-    ArrayRangeSyntax (_leftBracket, start, _dotDot, end, _rightBracket) {
+    ArrayIntervalSyntax (_leftBracket, start, _dotDot, end, _rightBracket) {
         return `_${genName('Array', 1)}(_${genName('upOrDownTo', 2)}(${start.asJs}, ${end.asJs}))`;
     },
-    ArrayRangeThenSyntax (_leftBracket, start, _comma_, then, _dotDot, end, _rightBracket) {
+    ArrayIntervalThenSyntax (_leftBracket, start, _comma_, then, _dotDot, end, _rightBracket) {
         return `_${genName('Array', 1)}(_${genName('thenTo', 3)}(${start.asJs}, ${then.asJs}, ${end.asJs}))`;
     },
     IntervalSyntax (_leftParen, start, _dotDot, end, _rightParen) {
@@ -9128,6 +9136,9 @@ const asJs = {
     },
     operatorAssignment (op, _colon, _equals) {
         return op.sourceString;
+    },
+    integerIntervalLiteral (start, _dots, end) {
+        return `_${genName('upTo', 2)}(${start.asJs}, ${end.asJs})`;
     },
     floatLiteral (s, i, _, f) {
         return `${s.sourceString}${i.sourceString}.${f.sourceString}`;
