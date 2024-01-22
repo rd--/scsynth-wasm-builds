@@ -8,6 +8,8 @@ update-jssc3:
 update-spl:
 	(cd ~/sw/spl/ts ; make dist)
 	cp ~/sw/spl/dist/sl.js lib/spl/dist
+	(cd ~/sw/spl/sl ; make)
+	cp ~/sw/spl/.cache/*.js lib/spl/.cache
 
 push-all:
 	r.gitlab-push.sh scsynth-wasm-builds
