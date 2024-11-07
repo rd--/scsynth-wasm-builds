@@ -67,3 +67,4 @@ There are also copies of libraries required by _JsSc3_ and _Spl_.
 - MersenneTwister - <https://github.com/misteltein/mersenne-twister>
 - OpenSoundControl - <https://github.com/colinbdclark/osc.js>
 - PriorityQueue - <https://github.com/mourner/flatqueue>
+- FFT - <https://github.com/indutny/fft.js/>
