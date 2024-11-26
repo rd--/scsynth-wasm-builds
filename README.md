@@ -64,7 +64,8 @@ The builds are made by _deno bundle_.
 There are also copies of libraries required by _JsSc3_ and _Spl_.
 
 - CommonMark - <https://github.com/commonmark/commonmark.js/>
+- Fft - <https://github.com/indutny/fft.js/>
+- Graphviz - <https://github.com/hpcc-systems/hpcc-js-wasm>
 - MersenneTwister - <https://github.com/misteltein/mersenne-twister>
 - OpenSoundControl - <https://github.com/colinbdclark/osc.js>
 - PriorityQueue - <https://github.com/mourner/flatqueue>
-- FFT - <https://github.com/indutny/fft.js/>
