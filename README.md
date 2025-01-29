@@ -69,3 +69,5 @@ There are also copies of libraries required by _JsSc3_ and _Spl_.
 - MersenneTwister - <https://github.com/misteltein/mersenne-twister>
 - OpenSoundControl - <https://github.com/colinbdclark/osc.js>
 - PriorityQueue - <https://github.com/mourner/flatqueue>
+- Robust-Predicates - <https://github.com/mourner/robust-predicates>
+- Delaunator - <https://github.com/mapbox/delaunator>
