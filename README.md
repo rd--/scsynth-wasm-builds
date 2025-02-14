@@ -61,9 +61,11 @@ This archive also has builds of the related projects <https://gitlab.com/rd--/js
 
 The builds are made by _deno bundle_.
 
-There are also copies of libraries required by _JsSc3_ and _Spl_.
+There are also copies of libraries required by _JsSc3_ and _Spl_ and _BlkSc3_.
 
 - CommonMark - <https://github.com/commonmark/commonmark.js/>
+- Blockly - <https://github.com/google/blockly>
+  + Toolbox Search - <https://github.com/google/blockly-samples/tree/master/plugins/toolbox-search>
 - Fft - <https://github.com/indutny/fft.js/>
 - Graphviz - <https://github.com/hpcc-systems/hpcc-js-wasm>
 - MersenneTwister - <https://github.com/misteltein/mersenne-twister>
