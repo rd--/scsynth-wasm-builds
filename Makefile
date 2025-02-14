@@ -10,6 +10,8 @@ update-spl:
 	cp ~/sw/spl/dist/sl.js lib/spl/dist
 	(cd ~/sw/spl/sl ; make)
 	cp ~/sw/spl/.cache/*.js lib/spl/.cache
+	cp ~/sw/spl/Package/Meta/PackageIndex.sl lib/spl/Package/Meta/
+	cp ~/sw/spl/config/preferences.json lib/spl/config
 
 push-all:
 	r.gitlab-push.sh scsynth-wasm-builds

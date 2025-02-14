@@ -1,0 +1,67 @@
+{
+	"Configuration": "Default",
+	"Default": {
+		"ScSynth": {
+			"Protocol": "Udp",
+			"Hostname": "127.0.0.1",
+			"Port": 57110,
+			"Outputs" : {
+				"Mono": {
+					"BusOffset": 0
+				},
+				"Stereo": {
+					"BusOffset": 0
+				},
+				"Main" : {
+					"BusOffset": 0,
+					"FrontIsVertex": false,
+					"NumberOfChannels": 2
+				},
+				"Mixer": {
+					"RuleTable": [
+						["1×2", [1, 2]]
+					],
+					"LowFrequency": {
+						"Sends": [],
+						"Gain": 1
+					}
+				}
+			}
+		}
+	},
+	"1×2+1×8+2×4": {
+		"ScSynth": {
+			"Protocol": "Tcp",
+			"Hostname": "192.168.1.62",
+			"Port": 57110,
+			"Outputs" : {
+				"Mono": {
+					"BusOffset": 8
+				},
+				"Stereo": {
+					"BusOffset": 0
+				},
+				"Main" : {
+					"BusOffset": 8,
+					"FrontIsVertex": true,
+					"NumberOfChannels": 8
+				},
+				"Mixer": {
+					"RuleTable": [
+						["1×2+1×8+2×4", [1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 19, 21, 22, 24, 23]],
+						["1×8+2×4", [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 19, 21, 22, 24, 23]],
+						["1×2+1×8", [1, 2, 9, 10, 11, 12, 13, 14, 15, 16]],
+						["1×8", [9, 10, 11, 12, 13, 14, 15, 16]],
+						["2×4", [17, 18, 20, 19, 21, 22, 24, 23]],
+						["1×4", [16, 10, 12, 14]],
+						["1×2", [1, 2]]
+					],
+					"LowFrequency": {
+						"Sends": [3, 4, 5, 6],
+						"Gain": 1.5
+					}
+				}
+			}
+		}
+	}
+}
