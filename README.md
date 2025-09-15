@@ -73,3 +73,4 @@ There are also copies of libraries required by _JsSc3_ and _Spl_ and _BlkSc3_.
 - PriorityQueue - <https://github.com/mourner/flatqueue>
 - Robust-Predicates - <https://github.com/mourner/robust-predicates>
 - Delaunator - <https://github.com/mapbox/delaunator>
+- Earcut - <https://github.com/mapbox/earcut>
