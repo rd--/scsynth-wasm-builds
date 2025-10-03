@@ -156,7 +156,6 @@
 	'Kernel-Comparable'
 	'Kernel-Copyable'
 	'Kernel-Equatable'
-	'Kernel-Identifiable'
 	'Kernel-Nil'
 	'Kernel-Object'
 	'Logic-Boolean'
