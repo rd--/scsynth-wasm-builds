@@ -179,6 +179,7 @@
 	'Math-IterativeMaps'
 	'Math-MatrixFunctions'
 	'Math-NumericalFunctions'
+	'Math-OnlineEncyclopediaOfIntegerSequences'
 	'Math-Optimization'
 	'Math-ParametricEquations'
 	'Math-Permutations'
