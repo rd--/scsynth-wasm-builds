@@ -172,6 +172,7 @@
 	'Math-FeatureDetection'
 	'Math-Fourier'
 	'Math-Gamma'
+	'Math-GrayCode'
 	'Math-HyperbolicFunctions'
 	'Math-IntegerSequence'
 	'Math-Integrals'
