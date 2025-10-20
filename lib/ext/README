@@ -1,11 +1,17 @@
 # Blockly
 
-Copied from release file at <https://github.com/google/blockly/releases>
+- <https://github.com/google/blockly>
+
+Copied from release file, see Makefile
 
 # Shadow-Block-Converter
 
-Copied from CDN at <https://cdn.jsdelivr.net/npm/@blockly/shadow-block-converter@7.0.4/dist/index.js>
+- <https://github.com/google/blockly-samples/tree/master/plugins/shadow-block-converter>
+
+Copied from Cdn, see Makefile
 
 # Toolbox-Search
 
-Copied from CDN at <https://cdn.jsdelivr.net/npm/@blockly/toolbox-search@3.1.2/dist/index.js>
+- <https://github.com/google/blockly-samples/tree/master/plugins/toolbox-search>
+
+Copied from Cdn, see Makefile
