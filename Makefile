@@ -13,6 +13,9 @@ update-spl:
 	cp ~/sw/spl/Package/Meta/PackageIndex.sl lib/spl/Package/Meta/
 	cp ~/sw/spl/config/preferences.json lib/spl/config
 
+clear-cache:
+	rm -f lib/spl/.cache/*.js
+
 push-all:
 	r.gitlab-push.sh scsynth-wasm-builds
 	r.github-push.sh scsynth-wasm-builds
