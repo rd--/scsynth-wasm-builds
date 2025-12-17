@@ -15,3 +15,8 @@ Copied from Cdn, see Makefile
 - <https://github.com/google/blockly-samples/tree/master/plugins/toolbox-search>
 
 Copied from Cdn, see Makefile
+
+# Ini
+
+- cd opt/src/denoland/std/ini
+- deno bundle mod.ts -o ini.js
