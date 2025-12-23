@@ -144,6 +144,7 @@
 	'Geometry-Tetrahedron'
 	'Geometry-Triangle'
 	'Geometry-TurtleGeometry'
+	'Geometry-WeavingInformationFile'
 	'Graphics-Bitmap'
 	'Graphics-Colour'
 	'Graphics-ColourGradient'
