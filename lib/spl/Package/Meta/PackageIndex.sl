@@ -153,6 +153,7 @@
 	'Graphics-Greymap'
 	'Graphics-Image'
 	'Graphics-LineDrawing'
+	'Graphics-NaturalColourSystem'
 	'Graphics-PerspectiveDrawing'
 	'Graphics-Plot'
 	'Graphics-PlotSet'
