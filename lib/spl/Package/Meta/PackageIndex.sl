@@ -220,6 +220,7 @@
 	'Meta-SmallKansasLibrary'
 	'Meta-StandardLibrary'
 	'Meta-SuperColliderLibrary'
+	'Music-AtonalTheory'
 	'Music-CentsTuning'
 	'Music-Meter'
 	'Music-Pitch'
