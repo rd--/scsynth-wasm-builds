@@ -18,5 +18,6 @@ Copied from Cdn, see Makefile
 
 # Ini
 
+- <https://jsr.io/@std/ini>
 - cd opt/src/denoland/std/ini
 - deno bundle mod.ts -o ini.js

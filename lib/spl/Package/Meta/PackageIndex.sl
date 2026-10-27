@@ -1,3 +1,5 @@
+/* Meta: PackageIndex */
+
 [
 	'Behaviour-Adverb'
 	'Behaviour-Apl'
@@ -39,6 +41,7 @@
 	'Collection-DirectedEdge'
 	'Collection-Do'
 	'Collection-Collection'
+	'Collection-EqualityDictionary'
 	'Collection-FiniteWord'
 	'Collection-Float32Array'
 	'Collection-Float64Array'
